@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+        AMSP | Antibiogram
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="style.css">
+
+</head>
+
+<body>
+
+<div
+    id="loadingOverlay"
+    style="
+        display:none;
+        position:fixed;
+        inset:0;
+        z-index:999;
+        background:rgba(245,248,252,.75);
+        align-items:center;
+        justify-content:center;
+    ">
+
+    Loading...
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- TOP NAVBAR -->
+<!-- ===================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-brand">
+
+        <div class="navbar-logo">
+
+            <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+                <path d="M8 15h8"/>
+
+            </svg>
+
+        </div>
+
+        <div class="navbar-titles">
+
+            <h1>
+                AMSP Analytics
+            </h1>
+
+            <p>
+                Antimicrobial Surveillance &amp; Research Platform
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="navbar-actions">
+
+        <a
+            href="index.html"
+            class="navbar-link">
+
+            <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            Dashboard
+
+        </a>
+
+        <div class="navbar-user">
+
+            <div class="navbar-avatar">
+
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+
+                    <circle cx="12" cy="7" r="4"/>
+
+                </svg>
+
+            </div>
+
+            Administrator
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<div class="page-container">
+
+
+
+
+<!-- ===================================================== -->
+<!-- SIDEBAR -->
+<!-- ===================================================== -->
+
+<aside class="sidebar">
+
+    <nav class="sidebar-menu">
+
+        <a href="index.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+
+                <path d="M9 22V12h6v10"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Dashboard
+
+            </span>
+
+        </a>
+
+
+
+        <a
+            href="antibiogram.html"
+            class="active">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Antibiogram
+
+            </span>
+
+        </a>
+
+
+
+        <a href="organism_summary.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Organism Summary
+
+            </span>
+
+        </a>
+
+
+
+        <a href="association_tests.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <circle cx="6" cy="6" r="3"/>
+
+                <circle cx="6" cy="18" r="3"/>
+
+                <circle cx="18" cy="12" r="3"/>
+
+                <path d="M8.6 7.5L15.4 10.7M8.6 16.5L15.4 13.3"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Association Tests
+
+            </span>
+
+        </a>
+
+
+
+        <a href="regression.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 3v18h18"/>
+
+                <path d="M18.7 8l-5.1 5.2-4-4L3 15.5"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Regression
+
+            </span>
+
+        </a>
+
+    </nav>
+
+
+
+    <div class="sidebar-footer">
+
+        <button
+            id="sidebarToggle"
+            type="button"
+            class="collapse-button">
+
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M11 17l-5-5 5-5"/>
+
+                <path d="M18 17l-5-5 5-5"/>
+
+            </svg>
+
+            <span class="collapse-label">
+
+                Collapse
+
+            </span>
+
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- ===================================================== -->
+<!-- MAIN CONTENT -->
+<!-- ===================================================== -->
+
+<main class="content-area">
+
+<div
+    id="messageBox"
+    class="message"
+    style="display:none; margin-bottom:16px;">
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- PAGE HEADER -->
+<!-- ===================================================== -->
+
+<header class="topbar">
+
+    <div>
+
+        <h1>
+
+            Organism-wise Antibiogram
+
+        </h1>
+
+        <p>
+
+            Antibiotic susceptibility profile for each isolated organism
+
+        </p>
+
+    </div>
+
+</header>
+
+<!-- ===================================================== -->
+<!-- FILTER CARD -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <h2>
+
+            Report Filters
+
+        </h2>
+
+    </div>
+
+
+    <div class="filter-grid">
+
+        <!-- ============================================== -->
+        <!-- DISTRICT -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                District
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by district">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="districtFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- BLOCK -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Block
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by block">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="blockFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- SAMPLE TYPE -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Sample Type
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by sample type">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="sampleTypeFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ORGANISMS -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Organisms
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter positive cultures by organism">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="organismsFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ANTIBIOTICS -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Antibiotics
+
+                <span
+                    class="filter-info-icon"
+                    title="Select antibiotics to include in the antibiogram">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="antibioticsFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- ACTION BUTTONS -->
+    <!-- ============================================== -->
+
+    <div class="button-row">
+
+        <button
+            id="generateReport"
+            class="primary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+
+            </svg>
+
+            Apply Filters
+
+        </button>
+
+
+
+        <button
+            id="resetFilters"
+            class="secondary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M3 12a9 9 0 1 0 3-6.7"/>
+
+                <path d="M3 4v5h5"/>
+
+            </svg>
+
+            Reset
+
+        </button>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- FILTERS APPLIED / SUMMARY STRIP -->
+<!-- ===================================================== -->
+
+<section
+    class="info-strip"
+    id="filtersAppliedStrip">
+
+    <div class="info-strip-block">
+
+        <div class="info-strip-icon">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="10"/>
+
+                <path d="M12 16v-4"/>
+
+                <path d="M12 8h.01"/>
+
+            </svg>
+
+        </div>
+
+        <div>
+
+            <div class="info-strip-label">
+
+                Filters Applied
+
+            </div>
+
+            <div
+                class="info-strip-value"
+                id="filtersAppliedText">
+
+                District: All |
+                Block: All |
+                Sample Type: All
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Organisms
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="organismCount">
+
+            —
+
+        </div>
+
+    </div>
+
+
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Antibiotics
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="antibioticCount">
+
+            —
+
+        </div>
+
+    </div>
+
+
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Report Generated
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="reportGeneratedValue">
+
+            —
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- ANTIBIOGRAM REPORT -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Organism-wise Antibiogram
+
+            </h2>
+
+            <p>
+
+                Percentage susceptibility profile of all selected
+                organisms across selected antibiotics.
+
+            </p>
+
+        </div>
+
+        <button
+            type="button"
+            class="export-button"
+            id="exportAntibiogram">
+
+            <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+
+                <path d="M7 10l5 5 5-5"/>
+
+                <path d="M12 15V3"/>
+
+            </svg>
+
+            Export Report
+
+        </button>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- Dynamic organism tables appear here -->
+    <!-- ================================================= -->
+
+    <div id="antibiogramContainer" class="antibiogram-container">
+
+        <!--
+
+        JavaScript will generate one table for each organism.
+
+        Example:
+
+        Escherichia coli
+
+        -----------------------------------------------
+
+        Antibiotic | Susceptible | Intermediate |
+        Resistant | Total
+
+        Amikacin
+        Ciprofloxacin
+        Meropenem
+        ...
+
+        -->
+
+    </div>
+
+</section>
+        <!-- ===================================================== -->
+        <!-- FOOTER -->
+        <!-- ===================================================== -->
+
+        <footer class="page-footer">
+
+            <p>
+
+                Antimicrobial Stewardship Program (AMSP)
+                &copy; 2026
+
+            </p>
+
+        </footer>
+
+    </main>
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script src="js/dashboard.js"></script>
+
+<script src="js/filterManager.js"></script>
+
+<script src="js/antibiogram.js"></script>
+
+</body>
+
+</html>

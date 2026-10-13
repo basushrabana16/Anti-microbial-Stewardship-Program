@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+
+        AMSP | Regression Analysis
+
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="style.css">
+
+</head>
+
+<body>
+
+<!-- ===================================================== -->
+<!-- LOADING OVERLAY -->
+<!-- ===================================================== -->
+
+<div
+    id="loadingOverlay"
+    style="
+        display:none;
+        position:fixed;
+        inset:0;
+        z-index:9999;
+        background:rgba(245,248,252,0.85);
+        align-items:center;
+        justify-content:center;
+        font-size:18px;
+        font-weight:500;
+        color:#1e293b;
+        flex-direction:column;
+    ">
+
+    <div style="text-align:center;">
+        <div style="font-size:48px; margin-bottom:16px;">⏳</div>
+        <div>Loading...</div>
+        <div style="font-size:14px; font-weight:400; color:#64748b; margin-top:8px;">
+            Please wait while the regression runs
+        </div>
+    </div>
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- TOP NAVBAR -->
+<!-- ===================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-brand">
+
+        <div class="navbar-logo">
+
+            <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+                <path d="M8 15h8"/>
+
+            </svg>
+
+        </div>
+
+        <div class="navbar-titles">
+
+            <h1>
+
+                AMSP Analytics
+
+            </h1>
+
+            <p>
+
+                Antimicrobial Surveillance &amp; Research Platform
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="navbar-actions">
+
+        <a
+            href="index.html"
+            class="navbar-link">
+
+            <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            Dashboard
+
+        </a>
+
+
+
+        <div class="navbar-user">
+
+            <div class="navbar-avatar">
+
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+
+                    <circle cx="12" cy="7" r="4"/>
+
+                </svg>
+
+            </div>
+
+            Administrator
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<div class="page-container">
+
+
+
+<!-- ===================================================== -->
+<!-- SIDEBAR -->
+<!-- ===================================================== -->
+
+<aside class="sidebar">
+
+    <nav class="sidebar-menu">
+
+        <a href="index.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+
+                <path d="M9 22V12h6v10"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Dashboard
+
+            </span>
+
+        </a>
+
+
+
+        <a href="antibiogram.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Antibiogram
+
+            </span>
+
+        </a>
+
+
+
+        <a href="organism_summary.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Organism Summary
+
+            </span>
+
+        </a>
+
+
+
+        <a href="association_tests.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <circle cx="6" cy="6" r="3"/>
+
+                <circle cx="6" cy="18" r="3"/>
+
+                <circle cx="18" cy="12" r="3"/>
+
+                <path d="M8.6 7.5L15.4 10.7M8.6 16.5L15.4 13.3"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Association Tests
+
+            </span>
+
+        </a>
+
+
+
+        <a
+            href="regression.html"
+            class="active">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 3v18h18"/>
+
+                <path d="M18.7 8l-5.1 5.2-4-4L3 15.5"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Regression
+
+            </span>
+
+        </a>
+
+    </nav>
+
+
+
+    <div class="sidebar-footer">
+
+        <button
+            id="sidebarToggle"
+            type="button"
+            class="collapse-button">
+
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M11 17l-5-5 5-5"/>
+
+                <path d="M18 17l-5-5 5-5"/>
+
+            </svg>
+
+            <span class="collapse-label">
+
+                Collapse
+
+            </span>
+
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- ===================================================== -->
+<!-- MAIN CONTENT -->
+<!-- ===================================================== -->
+
+<main class="content-area">
+
+<div
+    id="messageBox"
+    class="message"
+    style="display:none; margin-bottom:16px;">
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- PAGE HEADER -->
+<!-- ===================================================== -->
+
+<header class="topbar">
+
+    <div>
+
+        <h1>
+
+            Regression Analysis
+
+        </h1>
+
+        <p>
+
+            Categorical outcome regression models: Binary, Multinomial, and Ordinal Logistic Regression with comprehensive diagnostics.
+
+        </p>
+
+    </div>
+
+</header>
+
+<!-- ===================================================== -->
+<!-- FILTER CARD -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <h2>
+
+            Report Filters
+
+        </h2>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- FIRST ROW -->
+    <!-- ================================================= -->
+
+    <div class="filter-grid">
+
+        <!-- ============================================== -->
+        <!-- DISTRICT -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                District
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by district">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="districtFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                    <!-- Dynamic values -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- BLOCK -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Block
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by block">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="blockFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- SAMPLE TYPE -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Sample Type
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by sample type">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="sampleTypeFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ORGANISMS -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Organisms
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter positive cultures by organism">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="organismsFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- SECOND ROW -->
+    <!-- ================================================= -->
+
+    <div class="association-second-row">
+
+        <!-- ============================================== -->
+        <!-- INDEPENDENT VARIABLES (multi-select) -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Independent Variables
+
+                <span
+                    class="filter-info-icon"
+                    title="Select one or more predictors">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="independentVariablesFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Independent Variables
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- DEPENDENT VARIABLE (single-select) -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Dependent Variable
+
+                <span
+                    class="filter-info-icon"
+                    title="Select the outcome variable (categorical)">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="dependentVariableFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Dependent Variable
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ANTIBIOTIC (conditional) -->
+        <!-- ============================================== -->
+
+        <div class="filter-group" id="antibioticGroup" style="display:none;">
+
+            <label>
+
+                Antibiotic
+
+                <span
+                    class="filter-info-icon"
+                    title="Select an antibiotic for antibiogram regression">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="antibioticFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Antibiotic
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- ACTION BUTTONS -->
+    <!-- ============================================== -->
+
+    <div class="button-row">
+
+        <button
+            id="generateReport"
+            class="primary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+
+            </svg>
+
+            Run Regression
+
+        </button>
+
+
+
+        <button
+            id="resetFilters"
+            class="secondary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M3 12a9 9 0 1 0 3-6.7"/>
+
+                <path d="M3 4v5h5"/>
+
+            </svg>
+
+            Reset
+
+        </button>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- FILTER SUMMARY STRIP -->
+<!-- ===================================================== -->
+
+<section
+    class="info-strip"
+    id="filtersAppliedStrip">
+
+    <!-- ============================================== -->
+    <!-- FILTERS APPLIED -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-block">
+
+        <div class="info-strip-icon">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="10"/>
+
+                <path d="M12 16v-4"/>
+
+                <path d="M12 8h.01"/>
+
+            </svg>
+
+        </div>
+
+        <div>
+
+            <div class="info-strip-label">
+
+                Filters Applied
+
+            </div>
+
+            <div
+                class="info-strip-value"
+                id="filtersAppliedText">
+
+                District: All |
+                Block: All |
+                Sample Type: All |
+                Organisms: All
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- MODEL TYPE -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Model Type
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="modelTypeDisplay">
+
+            —
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- TOTAL RECORDS -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Total Records
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="totalRecords">
+
+            —
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- REPORT GENERATED -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Report Generated
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="reportGeneratedValue">
+
+            —
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- REGRESSION RESULTS -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Table 1. Regression Coefficients
+
+            </h2>
+
+            <p>
+
+                Logistic regression estimates. Coefficients are reported on the log-odds scale with odds ratios (OR) or relative risk ratios (RRR).
+
+            </p>
+
+        </div>
+
+        <button
+            type="button"
+            class="export-button"
+            id="exportRegression">
+
+            <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+
+                <path d="M7 10l5 5 5-5"/>
+
+                <path d="M12 15V3"/>
+
+            </svg>
+
+            Export Table
+
+        </button>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- MODEL FIT SUMMARY STRIP -->
+    <!-- ============================================== -->
+
+    <div
+        class="test-summary-strip"
+        id="modelFitStrip">
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">McFadden R²</span>
+            <span class="test-summary-value" id="pseudoRSquaredCell">—</span>
+        </div>
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">AIC</span>
+            <span class="test-summary-value" id="aicSummaryCell">—</span>
+        </div>
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">BIC</span>
+            <span class="test-summary-value" id="bicSummaryCell">—</span>
+        </div>
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">Log-Likelihood</span>
+            <span class="test-summary-value" id="logLikelihoodCell">—</span>
+        </div>
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">N</span>
+            <span class="test-summary-value" id="nObservationsCell">—</span>
+        </div>
+
+        <div class="test-summary-item">
+            <span class="test-summary-label">Converged</span>
+            <span class="test-summary-value" id="convergedCell">—</span>
+        </div>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table
+            id="regressionTable"
+            class="summary-table regression-table">
+
+            <thead id="regressionTableHead">
+
+                <!-- Dynamic header built by JavaScript -->
+
+            </thead>
+
+
+
+            <tbody id="regressionTableBody">
+
+                <!-- Dynamic rows built by JavaScript -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- OUTCOME DISTRIBUTION -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="outcomeDistributionSection">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Outcome Distribution
+
+            </h2>
+
+            <p>
+
+                Frequency distribution of the dependent variable.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="table-container">
+
+        <table class="summary-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Category</th>
+
+                    <th style="text-align:right;">Count</th>
+
+                    <th style="text-align:right;">Percentage</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="outcomeDistributionBody">
+
+                <tr>
+
+                    <td colspan="3" style="text-align:center; color:#94a3b8;">
+
+                        Run regression to see outcome distribution.
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- CLASSIFICATION DIAGNOSTICS (Binary only) -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="classificationSection" style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Classification Performance
+
+            </h2>
+
+            <p>
+
+                Binary classification metrics at threshold 0.50.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="table-container">
+
+        <table class="summary-table">
+
+            <tbody>
+
+                <tr>
+
+                    <td style="width:55%;">
+
+                        Accuracy
+
+                    </td>
+
+                    <td id="accuracyCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Sensitivity (Recall)
+
+                    </td>
+
+                    <td id="sensitivityCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Specificity
+
+                    </td>
+
+                    <td id="specificityCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Precision
+
+                    </td>
+
+                    <td id="precisionCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        F1-Score
+
+                    </td>
+
+                    <td id="f1ScoreCell">—</td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <div style="margin-top:12px;">
+
+        <div style="font-size:12px; color:#64748b; margin-bottom:4px; font-weight:500;">
+
+            Confusion Matrix
+
+        </div>
+
+        <div class="table-container">
+
+            <table class="summary-table" style="max-width:400px;">
+
+                <thead>
+
+                    <tr>
+
+                        <th></th>
+
+                        <th style="text-align:center;">Predicted Negative</th>
+
+                        <th style="text-align:center;">Predicted Positive</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td style="font-weight:500;">Actual Negative</td>
+
+                        <td id="tnCell" style="text-align:center;">—</td>
+
+                        <td id="fpCell" style="text-align:center;">—</td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td style="font-weight:500;">Actual Positive</td>
+
+                        <td id="fnCell" style="text-align:center;">—</td>
+
+                        <td id="tpCell" style="text-align:center;">—</td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- MULTINOMIAL CLASSIFICATION -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="multinomialClassificationSection" style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Multinomial Classification Performance
+
+            </h2>
+
+            <p>
+
+                Multiclass classification accuracy and confusion matrix.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div style="margin-bottom:12px;">
+
+        <span style="font-weight:500;">Accuracy:</span>
+
+        <span id="multinomialAccuracyCell">—</span>
+
+    </div>
+
+    <div class="table-container">
+
+        <table class="summary-table" id="confusionMatrixTable">
+
+            <thead id="confusionMatrixHead">
+
+                <!-- Dynamic -->
+
+            </thead>
+
+            <tbody id="confusionMatrixBody">
+
+                <!-- Dynamic -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- MODEL DIAGNOSTICS -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="diagnosticsSection">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Model Diagnostics
+
+            </h2>
+
+            <p>
+
+                Overall model fit statistics and convergence information.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table class="summary-table">
+
+            <tbody>
+
+                <tr>
+
+                    <td style="width:55%;">
+
+                        Log-Likelihood
+
+                    </td>
+
+                    <td id="logLikelihoodDetailCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Null Log-Likelihood
+
+                    </td>
+
+                    <td id="nullLogLikelihoodCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Likelihood-Ratio Test
+
+                    </td>
+
+                    <td id="likelihoodRatioCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        AIC
+
+                    </td>
+
+                    <td id="aicCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        BIC
+
+                    </td>
+
+                    <td id="bicCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        McFadden Pseudo R²
+
+                    </td>
+
+                    <td id="pseudoRSquaredDetailCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Convergence Status
+
+                    </td>
+
+                    <td id="convergenceStatusCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Condition Number
+
+                    </td>
+
+                    <td id="conditionNumberCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- HOSMER-LEMESHOW TEST (Binary only) -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="hosmerLemeshowSection" style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Hosmer-Lemeshow Test
+
+            </h2>
+
+            <p>
+
+                Goodness-of-fit test for binary logistic regression.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="table-container">
+
+        <table class="summary-table">
+
+            <tbody>
+
+                <tr>
+
+                    <td style="width:55%;">
+
+                        Chi-Square
+
+                    </td>
+
+                    <td id="hlChiSquareCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Degrees of Freedom
+
+                    </td>
+
+                    <td id="hlDFCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        P-Value
+
+                    </td>
+
+                    <td id="hlPValueCell">—</td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Interpretation
+
+                    </td>
+
+                    <td id="hlInterpretationCell">—</td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- PROPORTIONAL ODDS DIAGNOSTIC (Ordinal only) -->
+<!-- ===================================================== -->
+
+<section class="report-card" id="proportionalOddsSection" style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Proportional Odds Assumption
+
+            </h2>
+
+            <p>
+
+                Brant-style coefficient comparison across cumulative logits.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div id="proportionalOddsContent">
+
+        <p style="color:#64748b;">
+
+            Run regression to see proportional odds diagnostic.
+
+        </p>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- VARIANCE INFLATION FACTORS -->
+<!-- ===================================================== -->
+
+<section
+    class="report-card"
+    id="vifSection"
+    style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Table 2. Variance Inflation Factors (VIF)
+
+            </h2>
+
+            <p>
+
+                Multicollinearity check for the selected predictors.
+                VIF &gt; 10 typically signals problematic multicollinearity.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table
+            id="vifTable"
+            class="summary-table">
+
+            <thead>
+
+                <tr>
+
+                    <th style="width:70%;">
+
+                        Predictor
+
+                    </th>
+
+                    <th style="width:30%;">
+
+                        VIF
+
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="vifTableBody">
+
+                <!-- Populated by JavaScript -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- INTERPRETATION -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Statistical Interpretation
+
+            </h2>
+
+            <p>
+
+                Automatically generated interpretation of the regression model.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div
+        id="interpretationBox"
+        class="message info">
+
+        Run a regression analysis to generate the statistical interpretation.
+
+    </div>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- REPORT NOTES -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Report Notes
+
+            </h2>
+
+        </div>
+
+    </div>
+
+    <ul class="report-notes">
+
+        <li>
+
+            Categorical predictors are one-hot encoded. Each coefficient
+            is reported relative to a <strong>reference category</strong>,
+            shown in parentheses next to the variable name.
+
+        </li>
+
+        <li>
+
+            Coefficients marked
+            <strong>*</strong>, <strong>**</strong>, or <strong>***</strong>
+            are statistically significant at the 0.05, 0.01, and 0.001
+            levels respectively.
+
+        </li>
+
+        <li>
+
+            <strong>Binary Logistic Regression:</strong> Reports Odds Ratios (OR) with 95% confidence intervals.
+
+        </li>
+
+        <li>
+
+            <strong>Multinomial Logistic Regression:</strong> Reports Relative Risk Ratios (RRR) with 95% confidence intervals for each outcome category.
+
+        </li>
+
+        <li>
+
+            <strong>Ordinal Logistic Regression:</strong> Reports Odds Ratios (OR) with 95% confidence intervals under the proportional odds assumption.
+
+        </li>
+
+        <li>
+
+            Model fit is assessed using McFadden pseudo R², AIC, BIC, and likelihood-ratio test.
+
+        </li>
+
+        <li>
+
+            A Variance Inflation Factor (VIF) above 10 for any predictor
+            suggests problematic multicollinearity.
+
+        </li>
+
+        <li>
+
+            Classification metrics are provided for binary and multinomial models where applicable.
+
+        </li>
+
+    </ul>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- FOOTER -->
+<!-- ===================================================== -->
+
+<footer class="page-footer">
+
+    <p>
+
+        Antimicrobial Stewardship Program (AMSP)
+        &copy; 2026
+
+    </p>
+
+</footer>
+
+</main>
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script src="js/dashboard.js"></script>
+
+<script src="js/filterManager.js"></script>
+
+<script src="js/regression.js"></script>
+
+<!-- ===================================================== -->
+<!-- LOADING OVERLAY CONTROL -->
+<!-- ===================================================== -->
+
+<script>
+    // Global function to show/hide loading overlay
+    function showLoading(show) {
+        var overlay = document.getElementById('loadingOverlay');
+        if (!overlay) return;
+        
+        if (show) {
+            overlay.style.display = 'flex';
+        } else {
+            overlay.style.display = 'none';
+        }
+    }
+
+    // Make sure the loading overlay starts hidden
+    document.addEventListener('DOMContentLoaded', function() {
+        var overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+
+</html>

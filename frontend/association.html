@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+
+        AMSP | Association Tests
+
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="style.css">
+
+</head>
+
+<body>
+
+<div
+    id="loadingOverlay"
+    style="
+        display:none;
+        position:fixed;
+        inset:0;
+        z-index:999;
+        background:rgba(245,248,252,.75);
+        align-items:center;
+        justify-content:center;
+    ">
+
+    Loading...
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- TOP NAVBAR -->
+<!-- ===================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-brand">
+
+        <div class="navbar-logo">
+
+            <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+                <path d="M8 15h8"/>
+
+            </svg>
+
+        </div>
+
+        <div class="navbar-titles">
+
+            <h1>
+
+                AMSP Analytics
+
+            </h1>
+
+            <p>
+
+                Antimicrobial Surveillance &amp; Research Platform
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="navbar-actions">
+
+        <a
+            href="index.html"
+            class="navbar-link">
+
+            <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            Dashboard
+
+        </a>
+
+
+
+        <div class="navbar-user">
+
+            <div class="navbar-avatar">
+
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+
+                    <circle cx="12" cy="7" r="4"/>
+
+                </svg>
+
+            </div>
+
+            Administrator
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<div class="page-container">
+
+
+
+<!-- ===================================================== -->
+<!-- SIDEBAR -->
+<!-- ===================================================== -->
+
+<aside class="sidebar">
+
+    <nav class="sidebar-menu">
+
+        <a href="index.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+
+                <path d="M9 22V12h6v10"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Dashboard
+
+            </span>
+
+        </a>
+
+
+
+        <a href="antibiogram.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Antibiogram
+
+            </span>
+
+        </a>
+
+
+
+        <a href="organism_summary.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M9 2h6M10 2v6.34a2 2 0 0 1-.4 1.2L5.4 15.8A2 2 0 0 0 5 17v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a2 2 0 0 0-.4-1.2l-4.2-6.26A2 2 0 0 1 14 8.34V2"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Organism Summary
+
+            </span>
+
+        </a>
+
+
+
+        <a
+            href="association_tests.html"
+            class="active">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <circle cx="6" cy="6" r="3"/>
+
+                <circle cx="6" cy="18" r="3"/>
+
+                <circle cx="18" cy="12" r="3"/>
+
+                <path d="M8.6 7.5L15.4 10.7M8.6 16.5L15.4 13.3"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Association Tests
+
+            </span>
+
+        </a>
+
+
+
+        <a href="regression.html">
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M3 3v18h18"/>
+
+                <path d="M18.7 8l-5.1 5.2-4-4L3 15.5"/>
+
+            </svg>
+
+            <span class="nav-label">
+
+                Regression
+
+            </span>
+
+        </a>
+
+    </nav>
+
+
+
+    <div class="sidebar-footer">
+
+        <button
+            id="sidebarToggle"
+            type="button"
+            class="collapse-button">
+
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2">
+
+                <path d="M11 17l-5-5 5-5"/>
+
+                <path d="M18 17l-5-5 5-5"/>
+
+            </svg>
+
+            <span class="collapse-label">
+
+                Collapse
+
+            </span>
+
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- ===================================================== -->
+<!-- MAIN CONTENT -->
+<!-- ===================================================== -->
+
+<main class="content-area">
+
+<div
+    id="messageBox"
+    class="message"
+    style="display:none; margin-bottom:16px;">
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- PAGE HEADER -->
+<!-- ===================================================== -->
+
+<header class="topbar">
+
+    <div>
+
+        <h1>
+
+            Association Tests
+
+        </h1>
+
+        <p>
+
+            Statistical association analysis between categorical variables with automatic test selection and publication-ready reporting.
+
+        </p>
+
+    </div>
+
+</header>
+
+<!-- ===================================================== -->
+<!-- FILTER CARD -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <h2>
+
+            Report Filters
+
+        </h2>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- FIRST ROW -->
+    <!-- ================================================= -->
+
+    <div class="filter-grid">
+
+        <!-- ============================================== -->
+        <!-- DISTRICT -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                District
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by district">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="districtFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                    <!-- Dynamic values -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- BLOCK -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Block
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by block">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="blockFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- SAMPLE TYPE -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Sample Type
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter reports by sample type">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="sampleTypeFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ORGANISMS -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Organisms
+
+                <span
+                    class="filter-info-icon"
+                    title="Filter positive cultures by organism">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="organismsFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    All
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            value="all"
+                            checked>
+
+                        All
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- SECOND ROW -->
+    <!-- ================================================= -->
+
+    <div class="association-second-row">
+
+        <!-- ============================================== -->
+        <!-- INDEPENDENT VARIABLE -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Independent Variable
+
+                <span
+                    class="filter-info-icon"
+                    title="Select the explanatory variable">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="independentVariableFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Independent Variable
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- DEPENDENT VARIABLE -->
+        <!-- ============================================== -->
+
+        <div class="filter-group">
+
+            <label>
+
+                Dependent Variable
+
+                <span
+                    class="filter-info-icon"
+                    title="Select the outcome variable">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="dependentVariableFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Dependent Variable
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ============================================== -->
+        <!-- ANTIBIOTIC (shown only when required) -->
+        <!-- ============================================== -->
+
+        <div
+            class="filter-group"
+            id="antibioticGroup"
+            style="display:none;">
+
+            <label>
+
+                Antibiotic
+
+                <span
+                    class="filter-info-icon"
+                    title="Displayed only when 'Antibiogram Susceptibility' is selected">
+
+                    i
+
+                </span>
+
+            </label>
+
+            <div
+                class="multi-select"
+                id="antibioticsFilter">
+
+                <button
+                    type="button"
+                    class="dropdown-button">
+
+                    Select Antibiotic
+
+                </button>
+
+                <div class="dropdown-panel">
+
+                    <!-- Populated by JavaScript -->
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- ACTION BUTTONS -->
+    <!-- ============================================== -->
+
+    <div class="button-row">
+
+        <button
+            id="generateReport"
+            class="primary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+
+            </svg>
+
+            Run Association Test
+
+        </button>
+
+
+
+        <button
+            id="resetFilters"
+            class="secondary-button">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M3 12a9 9 0 1 0 3-6.7"/>
+
+                <path d="M3 4v5h5"/>
+
+            </svg>
+
+            Reset
+
+        </button>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- FILTER SUMMARY STRIP -->
+<!-- ===================================================== -->
+
+<section
+    class="info-strip"
+    id="filtersAppliedStrip">
+
+    <!-- ============================================== -->
+    <!-- FILTERS APPLIED -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-block">
+
+        <div class="info-strip-icon">
+
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="10"/>
+
+                <path d="M12 16v-4"/>
+
+                <path d="M12 8h.01"/>
+
+            </svg>
+
+        </div>
+
+        <div>
+
+            <div class="info-strip-label">
+
+                Filters Applied
+
+            </div>
+
+            <div
+                class="info-strip-value"
+                id="filtersAppliedText">
+
+                District: All |
+                Block: All |
+                Sample Type: All |
+                Organisms: All
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- TEST USED -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Statistical Test
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="selectedTest">
+
+            Auto
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- TOTAL RECORDS -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Total Records
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="totalRecords">
+
+            —
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================================== -->
+    <!-- REPORT GENERATED -->
+    <!-- ============================================== -->
+
+    <div class="info-strip-stat">
+
+        <div class="info-strip-label">
+
+            Report Generated
+
+        </div>
+
+        <div
+            class="info-strip-value"
+            id="reportGeneratedValue">
+
+            —
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- ASSOCIATION RESULTS -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Table 1. Association Between Variables
+
+            </h2>
+
+            <p>
+
+                Cross-tabulation with row percentages and statistical test results.
+
+            </p>
+
+        </div>
+
+        <button
+            type="button"
+            class="export-button"
+            id="exportAssociation">
+
+            <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+
+                <path d="M7 10l5 5 5-5"/>
+
+                <path d="M12 15V3"/>
+
+            </svg>
+
+            Export Table
+
+        </button>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table
+            id="associationTable"
+            class="summary-table association-table">
+
+            <thead id="associationTableHead">
+
+                <!-- ================================================= -->
+                <!-- Fully dynamic single header row, built by
+                     association_tests.js:
+
+                     Variable | ...dependent categories... | Total |
+                     Test | Statistic | df | p-value
+
+                     Example
+                     ------------------------------------------------
+                     Variable | No Growth | Positive | Total |
+                     Test | Statistic | df | p-value
+                -->
+
+            </thead>
+
+
+
+            <tbody id="associationTableBody">
+
+                <!--
+
+                JavaScript will generate rows similar to:
+
+                ------------------------------------------------------------
+
+                Female  274 (37.53%)  456 (62.47%)  730  Chi-square  2.8635  2  0.2389
+                Male    209 (33.17%)  421 (66.83%)  630
+                Other   231 (36.09%)  409 (63.91%)  640
+                Total   714 (35.70%)  1,286 (64.30%)  2,000
+
+                The Test/Statistic/df/p-value cells are only written on the
+                first category row, using rowspan to cover every category
+                row (Female/Male/Other above) but NOT the Total row.
+
+                -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- ASSUMPTION CHECKS -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Assumption Checks
+
+            </h2>
+
+            <p>
+
+                Assessment of expected cell frequencies and automatic statistical test selection.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table class="summary-table">
+
+            <tbody>
+
+                <tr>
+
+                    <td style="width:55%;">
+
+                        Minimum Expected Frequency
+
+                    </td>
+
+                    <td id="minimumExpectedCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Number of Cells with Expected Frequency &lt; 5
+
+                    </td>
+
+                    <td id="cellsBelowFiveCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Percentage of Cells with Expected Frequency &lt; 5
+
+                    </td>
+
+                    <td id="percentBelowFiveCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        Recommended Statistical Test
+
+                    </td>
+
+                    <td id="recommendedTestCell">
+
+                        —
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- INTERPRETATION -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Statistical Interpretation
+
+            </h2>
+
+            <p>
+
+                Automatically generated interpretation of the association test.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <div
+        id="interpretationBox"
+        class="message info">
+
+        Run an association analysis to generate the statistical interpretation.
+
+    </div>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- REPORT NOTES -->
+<!-- ===================================================== -->
+
+<section class="report-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Report Notes
+
+            </h2>
+
+        </div>
+
+    </div>
+
+    <ul class="report-notes">
+
+        <li>
+
+            Values inside contingency table cells are reported as
+            <strong>Count (Row %)</strong>.
+
+        </li>
+
+        <li>
+
+            Row percentages are calculated using the corresponding row total.
+
+        </li>
+
+        <li>
+
+            The Total row displays the percentage contribution of each column
+            to the overall sample.
+
+        </li>
+
+        <li>
+
+            Statistical significance is assessed at
+            <strong>α = 0.05</strong>.
+
+        </li>
+
+        <li>
+
+            Automatic test selection follows standard assumptions using
+            Pearson Chi-square, Fisher's Exact Test or Fisher-Freeman-Halton
+            Exact Test.
+
+        </li>
+
+    </ul>
+
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- FOOTER -->
+<!-- ===================================================== -->
+
+<footer class="page-footer">
+
+    <p>
+
+        Antimicrobial Stewardship Program (AMSP)
+        &copy; 2026
+
+    </p>
+
+</footer>
+
+</main>
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script src="js/dashboard.js"></script>
+
+<script src="js/filterManager.js"></script>
+
+<script src="js/association_tests.js"></script>
+
+</body>
+
+</html>

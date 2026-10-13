@@ -1,0 +1,1347 @@
+CREATE DATABASE IF NOT EXISTS secure_app
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE secure_app;
+
+
+
+CREATE DATABASE IF NOT EXISTS secure_app
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE secure_app;
+
+
+
+CREATE TABLE users (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    username VARCHAR(30) NOT NULL UNIQUE,
+    email VARCHAR(60) NOT NULL UNIQUE,
+
+    password VARCHAR(100) NOT NULL,
+
+    role ENUM('super_admin','admin','operator','evaluation','prescription_reviewer','microbiologist')
+    NOT NULL DEFAULT 'operator',
+
+    is_verified TINYINT(1) NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(30) NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_email (email),
+    INDEX idx_username (username),
+    INDEX idx_role (role),
+    INDEX idx_verified (is_verified)
+) ENGINE=InnoDB;
+
+
+
+CREATE TABLE `contact_messages` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `user_id` INT UNSIGNED DEFAULT NULL,
+    `user_name` VARCHAR(30) DEFAULT NULL,
+    `email` VARCHAR(60) NOT NULL,
+    `mobile` VARCHAR(10) DEFAULT NULL,
+    `message` TEXT NOT NULL,
+    `status` ENUM('new','read','replied') NOT NULL DEFAULT 'new',
+    `contact_role` ENUM('super_admin','admin','operator','evaluation','prescription_reviewer','microbiologist') DEFAULT NULL,
+    `submitted_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX (`status`),
+    INDEX (`submitted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+
+
+
+CREATE TABLE prescriptions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    /* ==========================
+       NEW IDENTIFICATION FIELDS
+    ========================== */
+    study_id VARCHAR(20) DEFAULT NULL,
+    cs_sample_send ENUM('yes','no') NULL DEFAULT NULL,
+    regn_no VARCHAR(20) DEFAULT NULL,
+    prescription_date DATE NULL DEFAULT NULL,
+
+    /* ==========================
+       PATIENT DETAILS
+    ========================== */
+    patient_name TEXT DEFAULT NULL,
+
+    age_years TINYINT UNSIGNED NOT NULL DEFAULT 0
+        CHECK (age_years BETWEEN 0 AND 105),
+
+    age_months TINYINT UNSIGNED NOT NULL DEFAULT 0
+        CHECK (age_months BETWEEN 0 AND 12),
+
+    age_days TINYINT UNSIGNED NOT NULL DEFAULT 0
+        CHECK (age_days BETWEEN 0 AND 31),
+
+    gender ENUM('male','female','other') DEFAULT NULL,
+
+    district VARCHAR(30) DEFAULT NULL,
+    block VARCHAR(50) DEFAULT NULL,
+
+    /* ==========================
+       FILE DETAILS
+    ========================== */
+    file_original_name TEXT DEFAULT NULL,
+    file_stored_name TEXT DEFAULT NULL,
+    file_size INT UNSIGNED DEFAULT NULL,
+    file_mime VARCHAR(100) DEFAULT 'application/pdf',
+
+    /* ==========================
+       UPLOAD INFO
+    ========================== */
+    operator_id INT UNSIGNED DEFAULT NULL,
+    operator_username TEXT DEFAULT NULL,
+
+   /* ==========================
+        REVIEW WORKFLOW
+    ========================= */
+     status ENUM('pending','eval-busy','reviewed','expert_busy','expert_done_final','rejected','cs-wait','oprat-wait')
+     NOT NULL DEFAULT 'cs-wait',
+
+    locked_by INT UNSIGNED NULL,
+    locked_at DATETIME NULL,
+
+    reviewed_by INT UNSIGNED DEFAULT NULL,
+    reviewed_at TIMESTAMP NULL DEFAULT NULL,
+
+
+   /* ==========================
+        EXPERT WORKFLOW
+    ========================= */
+    expert_reviewed_by INT UNSIGNED NULL,
+    expert_reviewed_at TIMESTAMP NULL DEFAULT NULL, 
+
+    /* ==========================
+       TIMESTAMPS
+    ========================== */
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP,
+
+    /* ==========================
+       INDEXES
+    ========================== */
+    INDEX idx_operator (operator_id),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at),
+    INDEX idx_study_id (study_id),
+    INDEX idx_regn_no (regn_no)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+ALTER TABLE prescriptions
+
+/* =========================
+   SECTION A – EVALUATION META
+========================= */
+ADD COLUMN eval_hospital VARCHAR(40) NULL,
+ADD COLUMN data_collection_date DATE NULL,
+ADD COLUMN data_collector_name VARCHAR(20) NULL,
+ADD COLUMN patient_consented ENUM('yes','no') DEFAULT NULL,
+ADD COLUMN body_weight_mentioned ENUM('yes','no') NULL,
+ADD COLUMN eval_weight DECIMAL(5,2) NULL,
+ADD COLUMN eval_opd_ipd ENUM('opd','ipd') NULL,
+ADD COLUMN eval_phase ENUM('baseline','post-intervention','nil') NULL,
+ADD COLUMN diagnosis VARCHAR(30) NULL,
+
+/* =========================
+   SECTION B – CLINICAL INFO
+========================= */
+ADD COLUMN eval_b_registration ENUM('yes','no') NULL,
+ADD COLUMN eval_b_identifier ENUM('yes','no') NULL,
+ADD COLUMN eval_b_age ENUM('yes','no') NULL,
+ADD COLUMN eval_b_weight ENUM('yes','no') NULL,
+ADD COLUMN eval_b_date ENUM('yes','no') NULL,
+ADD COLUMN eval_b_gender ENUM('yes','no') NULL,
+ADD COLUMN eval_b_legible ENUM('yes','no') NULL,
+ADD COLUMN eval_b_history ENUM('yes','no') NULL,
+ADD COLUMN eval_b_exam ENUM('yes','no') NULL,
+ADD COLUMN eval_b_diagnosis ENUM('yes','no') NULL,
+
+/* =========================
+   SECTION C – INDICATORS
+========================= */
+ADD COLUMN eval_c_total_drugs INT NULL,
+ADD COLUMN eval_c_total_antibiotics INT NULL,
+ADD COLUMN eval_c_injectables INT NULL,
+ADD COLUMN eval_c_generic_drugs INT NULL,
+ADD COLUMN eval_c_generic_antibiotics INT NULL,
+ADD COLUMN eval_c_who_eml INT NULL,
+ADD COLUMN eval_c_nelm INT NULL,
+ADD COLUMN eval_c_formulary INT NULL,
+ADD COLUMN eval_c_fdc INT NULL,
+ADD COLUMN eval_c_state_guideline INT NULL,
+ADD COLUMN eval_c_icmr_guideline INT NULL,
+
+/* =========================
+   SECTION D – META
+========================= */
+ADD COLUMN d_not_required TINYINT(1) DEFAULT 0,
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 1
+===================================================== */
+ADD COLUMN d_name_1 VARCHAR(40) NULL,
+ADD COLUMN d_route_1 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_1 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_1 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_1 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_1 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_1 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_1 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_1 INT NULL,
+ADD COLUMN d_aware_1 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_1 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_1 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_1 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_1 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_1 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_1 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 2
+===================================================== */
+ADD COLUMN d_name_2 VARCHAR(40) NULL,
+ADD COLUMN d_route_2 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_2 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_2 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_2 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_2 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_2 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_2 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_2 INT NULL,
+ADD COLUMN d_aware_2 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_2 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_2 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_2 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_2 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_2 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_2 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 3
+===================================================== */
+ADD COLUMN d_name_3 VARCHAR(40) NULL,
+ADD COLUMN d_route_3 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_3 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_3 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_3 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_3 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_3 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_3 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_3 INT NULL,
+ADD COLUMN d_aware_3 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_3 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_3 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_3 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_3 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_3 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_3 TEXT NULL,
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 4
+===================================================== */
+ADD COLUMN d_name_4 VARCHAR(40) NULL,
+ADD COLUMN d_route_4 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_4 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_4 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_4 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_4 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_4 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_4 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_4 INT NULL,
+ADD COLUMN d_aware_4 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_4 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_4 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_4 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_4 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_4 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_4 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 5
+===================================================== */
+ADD COLUMN d_name_5 VARCHAR(40) NULL,
+ADD COLUMN d_route_5 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_5 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_5 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_5 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_5 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_5 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_5 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_5 INT NULL,
+ADD COLUMN d_aware_5 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_5 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_5 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_5 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_5 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_5 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_5 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 6
+===================================================== */
+ADD COLUMN d_name_6 VARCHAR(40) NULL,
+ADD COLUMN d_route_6 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_6 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_6 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_6 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_6 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_6 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_6 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_6 INT NULL,
+ADD COLUMN d_aware_6 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_6 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_6 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_6 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_6 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_6 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_6 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 7
+===================================================== */
+ADD COLUMN d_name_7 VARCHAR(40) NULL,
+ADD COLUMN d_route_7 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_7 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_7 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_7 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_7 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_7 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_7 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_7 INT NULL,
+ADD COLUMN d_aware_7 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_7 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_7 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_7 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_7 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_7 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_7 TEXT NULL,
+
+
+/* =====================================================
+   SECTION D – ANTIBIOTIC 8
+===================================================== */
+ADD COLUMN d_name_8 VARCHAR(40) NULL,
+ADD COLUMN d_route_8 VARCHAR(6) NULL,
+ADD COLUMN d_dose_unit_8 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN d_dose_8 VARCHAR(5) NULL,
+ADD COLUMN d_dose_rating_8 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_frequency_8 VARCHAR(15) NULL,
+ADD COLUMN d_frequency_rating_8 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN d_duration_mentioned_8 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN d_duration_8 INT NULL,
+ADD COLUMN d_aware_8 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN d_cs_report_available_8 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN d_cs_matched_8 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN d_guideline_8 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN d_decision_8 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN d_switched_to_8 ENUM('narrow spectrum','oral antibiotic') NULL,
+ADD COLUMN d_justification_8 TEXT NULL,
+
+
+/* =========================
+   SECTION Da – META
+========================= */
+ADD COLUMN da_not_required TINYINT(1) DEFAULT 0,
+ADD COLUMN da_admission_date DATE NULL,
+ADD COLUMN da_hospital_stay INT NULL,
+ADD COLUMN da_outcome ENUM('discharge','death','referred','dorb / dama') NULL,
+ADD COLUMN da_outcome_date DATE NULL,
+
+
+/* =========================
+   ANTIBIOTIC 1
+========================= */
+ADD COLUMN da_name_1 VARCHAR(40) NULL,
+ADD COLUMN da_route_1 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_1 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_1 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_1 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_1 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_1 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_1 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_1 INT NULL,
+ADD COLUMN da_aware_1 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_1 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_1 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_1 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_1 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_1 TEXT NULL,
+ADD COLUMN da_switched_to_1 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 2
+========================= */
+ADD COLUMN da_name_2 VARCHAR(40) NULL,
+ADD COLUMN da_route_2 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_2 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_2 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_2 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_2 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_2 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_2 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_2 INT NULL,
+ADD COLUMN da_aware_2 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_2 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_2 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_2 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_2 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_2 TEXT NULL,
+ADD COLUMN da_switched_to_2 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 3
+========================= */
+ADD COLUMN da_name_3 VARCHAR(40) NULL,
+ADD COLUMN da_route_3 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_3 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_3 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_3 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_3 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_3 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_3 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_3 INT NULL,
+ADD COLUMN da_aware_3 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_3 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_3 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_3 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_3 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_3 TEXT NULL,
+ADD COLUMN da_switched_to_3 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 4
+========================= */
+ADD COLUMN da_name_4 VARCHAR(40) NULL,
+ADD COLUMN da_route_4 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_4 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_4 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_4 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_4 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_4 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_4 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_4 INT NULL,
+ADD COLUMN da_aware_4 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_4 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_4 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_4 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_4 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_4 TEXT NULL,
+ADD COLUMN da_switched_to_4 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 5
+========================= */
+ADD COLUMN da_name_5 VARCHAR(40) NULL,
+ADD COLUMN da_route_5 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_5 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_5 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_5 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_5 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_5 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_5 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_5 INT NULL,
+ADD COLUMN da_aware_5 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_5 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_5 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_5 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_5 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_5 TEXT NULL,
+ADD COLUMN da_switched_to_5 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 6
+========================= */
+ADD COLUMN da_name_6 VARCHAR(40) NULL,
+ADD COLUMN da_route_6 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_6 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_6 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_6 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_6 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_6 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_6 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_6 INT NULL,
+ADD COLUMN da_aware_6 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_6 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_6 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_6 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_6 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_6 TEXT NULL,
+ADD COLUMN da_switched_to_6 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 7
+========================= */
+ADD COLUMN da_name_7 VARCHAR(40) NULL,
+ADD COLUMN da_route_7 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_7 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_7 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_7 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_7 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_7 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_7 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_7 INT NULL,
+ADD COLUMN da_aware_7 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_7 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_7 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_7 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_7 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_7 TEXT NULL,
+ADD COLUMN da_switched_to_7 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   ANTIBIOTIC 8
+========================= */
+ADD COLUMN da_name_8 VARCHAR(40) NULL,
+ADD COLUMN da_route_8 VARCHAR(6) NULL,
+ADD COLUMN da_dose_unit_8 ENUM('mg','ml','gm','not recognised') NULL,
+ADD COLUMN da_dose_8 VARCHAR(5) NULL,
+ADD COLUMN da_dose_rating_8 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_frequency_8 VARCHAR(15) NULL,
+ADD COLUMN da_frequency_rating_8 ENUM('appropriate','not appropriate','not mentioned') NULL,
+ADD COLUMN da_duration_mentioned_8 ENUM('mentioned','not_mentioned') NULL,
+ADD COLUMN da_duration_8 INT NULL,
+ADD COLUMN da_aware_8 ENUM('access','watch','reserve','other') NULL,
+ADD COLUMN da_cs_report_available_8 ENUM('available','not_required','not_done') NULL,
+ADD COLUMN da_cs_matched_8 ENUM('yes','no','no_growth') NULL,
+ADD COLUMN da_guideline_8 ENUM('yes','no','not_applicable') NULL,
+ADD COLUMN da_decision_8 ENUM(
+    'stop',
+    'escalate',
+    'de-escalate',
+    'switch to oral',
+    'switch to narrow spectrum',
+    'change to other broad spectrum'
+) NULL,
+ADD COLUMN da_justification_8 TEXT NULL,
+ADD COLUMN da_switched_to_8 ENUM('narrow spectrum','oral antibiotic') NULL,
+
+
+/* =========================
+   SECTION E – OVERALL
+========================= */
+ADD COLUMN eval_more_drugs ENUM('yes','no') NULL,
+ADD COLUMN eval_interaction ENUM('yes','no') NULL,
+ADD COLUMN eval_ineffective ENUM('yes','no') NULL,
+ADD COLUMN eval_adr ENUM('yes','no') NULL,
+ADD COLUMN eval_appropriate ENUM('yes','no') NULL,
+
+/* =========================
+   SECTION F – EXPERT
+========================= */
+ADD COLUMN eval_expert_agree ENUM('yes','no') NULL,
+ADD COLUMN eval_expert_comment TEXT NULL,
+
+ADD COLUMN rejection_reason TEXT NULL,
+ADD COLUMN rejected_by INT UNSIGNED NULL,
+ADD COLUMN rejected_at TIMESTAMP NULL DEFAULT NULL,
+
+
+
+/* =========================
+   C/S report
+========================= */
+-- ========== Set _1 ==========
+ADD COLUMN sample_id_1 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_1 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_1 DATE DEFAULT NULL,
+ADD COLUMN sample_type_1 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_1 TIME DEFAULT NULL,
+ADD COLUMN test_date_1 DATE DEFAULT NULL,
+ADD COLUMN referred_by_1 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_1 DATE DEFAULT NULL,
+ADD COLUMN culture_result_1 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_1 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_1 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_1 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_1 TEXT DEFAULT NULL,
+ADD COLUMN report_size_1 INT DEFAULT NULL,
+ADD COLUMN report_mime_1 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_1 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_1 TEXT DEFAULT NULL,
+ADD COLUMN created_at_1 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _2 ==========
+ADD COLUMN sample_id_2 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_2 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_2 DATE DEFAULT NULL,
+ADD COLUMN sample_type_2 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_2 TIME DEFAULT NULL,
+ADD COLUMN test_date_2 DATE DEFAULT NULL,
+ADD COLUMN referred_by_2 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_2 DATE DEFAULT NULL,
+ADD COLUMN culture_result_2 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_2 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_2 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_2 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_2 TEXT DEFAULT NULL,
+ADD COLUMN report_size_2 INT DEFAULT NULL,
+ADD COLUMN report_mime_2 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_2 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_2 TEXT DEFAULT NULL,
+ADD COLUMN created_at_2 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _3 ==========
+ADD COLUMN sample_id_3 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_3 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_3 DATE DEFAULT NULL,
+ADD COLUMN sample_type_3 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_3 TIME DEFAULT NULL,
+ADD COLUMN test_date_3 DATE DEFAULT NULL,
+ADD COLUMN referred_by_3 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_3 DATE DEFAULT NULL,
+ADD COLUMN culture_result_3 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_3 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_3 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_3 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_3 TEXT DEFAULT NULL,
+ADD COLUMN report_size_3 INT DEFAULT NULL,
+ADD COLUMN report_mime_3 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_3 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_3 TEXT DEFAULT NULL,
+ADD COLUMN created_at_3 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _4 ==========
+ADD COLUMN sample_id_4 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_4 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_4 DATE DEFAULT NULL,
+ADD COLUMN sample_type_4 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_4 TIME DEFAULT NULL,
+ADD COLUMN test_date_4 DATE DEFAULT NULL,
+ADD COLUMN referred_by_4 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_4 DATE DEFAULT NULL,
+ADD COLUMN culture_result_4 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_4 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_4 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_4 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_4 TEXT DEFAULT NULL,
+ADD COLUMN report_size_4 INT DEFAULT NULL,
+ADD COLUMN report_mime_4 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_4 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_4 TEXT DEFAULT NULL,
+ADD COLUMN created_at_4 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _5 ==========
+ADD COLUMN sample_id_5 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_5 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_5 DATE DEFAULT NULL,
+ADD COLUMN sample_type_5 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_5 TIME DEFAULT NULL,
+ADD COLUMN test_date_5 DATE DEFAULT NULL,
+ADD COLUMN referred_by_5 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_5 DATE DEFAULT NULL,
+ADD COLUMN culture_result_5 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_5 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_5 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_5 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_5 TEXT DEFAULT NULL,
+ADD COLUMN report_size_5 INT DEFAULT NULL,
+ADD COLUMN report_mime_5 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_5 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_5 TEXT DEFAULT NULL,
+ADD COLUMN created_at_5 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _6 ==========
+ADD COLUMN sample_id_6 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_6 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_6 DATE DEFAULT NULL,
+ADD COLUMN sample_type_6 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_6 TIME DEFAULT NULL,
+ADD COLUMN test_date_6 DATE DEFAULT NULL,
+ADD COLUMN referred_by_6 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_6 DATE DEFAULT NULL,
+ADD COLUMN culture_result_6 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_6 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_6 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_6 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_6 TEXT DEFAULT NULL,
+ADD COLUMN report_size_6 INT DEFAULT NULL,
+ADD COLUMN report_mime_6 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_6 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_6 TEXT DEFAULT NULL,
+ADD COLUMN created_at_6 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _7 ==========
+ADD COLUMN sample_id_7 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_7 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_7 DATE DEFAULT NULL,
+ADD COLUMN sample_type_7 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_7 TIME DEFAULT NULL,
+ADD COLUMN test_date_7 DATE DEFAULT NULL,
+ADD COLUMN referred_by_7 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_7 DATE DEFAULT NULL,
+ADD COLUMN culture_result_7 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_7 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_7 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_7 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_7 TEXT DEFAULT NULL,
+ADD COLUMN report_size_7 INT DEFAULT NULL,
+ADD COLUMN report_mime_7 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_7 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_7 TEXT DEFAULT NULL,
+ADD COLUMN created_at_7 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _8 ==========
+ADD COLUMN sample_id_8 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_8 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_8 DATE DEFAULT NULL,
+ADD COLUMN sample_type_8 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_8 TIME DEFAULT NULL,
+ADD COLUMN test_date_8 DATE DEFAULT NULL,
+ADD COLUMN referred_by_8 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_8 DATE DEFAULT NULL,
+ADD COLUMN culture_result_8 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_8 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_8 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_8 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_8 TEXT DEFAULT NULL,
+ADD COLUMN report_size_8 INT UNSIGNED DEFAULT NULL,
+ADD COLUMN report_mime_8 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_8 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_8 TEXT DEFAULT NULL,
+ADD COLUMN created_at_8 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _9 ==========
+ADD COLUMN sample_id_9 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_9 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_9 DATE DEFAULT NULL,
+ADD COLUMN sample_type_9 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_9 TIME DEFAULT NULL,
+ADD COLUMN test_date_9 DATE DEFAULT NULL,
+ADD COLUMN referred_by_9 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_9 DATE DEFAULT NULL,
+ADD COLUMN culture_result_9 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_9 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_9 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_9 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_9 TEXT DEFAULT NULL,
+ADD COLUMN report_size_9 INT UNSIGNED DEFAULT NULL,
+ADD COLUMN report_mime_9 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_9 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_9 TEXT DEFAULT NULL,
+ADD COLUMN created_at_9 TIMESTAMP NULL DEFAULT NULL,
+
+-- ========== Set _10 ==========
+ADD COLUMN sample_id_10 TEXT DEFAULT NULL,
+ADD COLUMN lab_no_10 TEXT DEFAULT NULL,
+ADD COLUMN collection_date_10 DATE DEFAULT NULL,
+ADD COLUMN sample_type_10 TEXT DEFAULT NULL,
+ADD COLUMN collection_time_10 TIME DEFAULT NULL,
+ADD COLUMN test_date_10 DATE DEFAULT NULL,
+ADD COLUMN referred_by_10 TEXT DEFAULT NULL,
+ADD COLUMN reporting_date_10 DATE DEFAULT NULL,
+ADD COLUMN culture_result_10 ENUM('positive', 'no growth') DEFAULT NULL,
+ADD COLUMN organism_identification_10 TEXT DEFAULT NULL,
+ADD COLUMN amoxycillin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN moxifloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amoxyclav_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN norfloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ampicillin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ofloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN oxacillin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN azithromycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN penicillin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clarithromycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN erythromycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN piperacillin_tazobactam_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN imipenem_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cephalexin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN meropenem_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefuroxime_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN doxycycline_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftriaxone_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN tetracycline_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefotaxime_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN linezolid_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ceftazidime_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN clindamycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefixime_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN vancomycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefepime_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cotrimoxazole_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN cefoxitin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN chloramphenicol_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN amikacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nitrofurantoin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gentamicin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN aztreonam_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN netilmicin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN fosfomycin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN nalidixic_acid_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ciprofloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN gatifloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN levofloxacin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN colistin_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN ertapenem_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN sulfamethoxazole_trimethoprim_10 ENUM('susceptible','intermediate','resistant') DEFAULT NULL,
+ADD COLUMN report_original_name_10 TEXT DEFAULT NULL,
+ADD COLUMN report_stored_name_10 TEXT DEFAULT NULL,
+ADD COLUMN report_size_10 INT DEFAULT NULL,
+ADD COLUMN report_mime_10 TEXT DEFAULT NULL,
+ADD COLUMN uploaded_by_id_10 INT DEFAULT NULL,
+ADD COLUMN uploaded_by_username_10 TEXT DEFAULT NULL,
+ADD COLUMN created_at_10 TIMESTAMP NULL DEFAULT NULL;
+
+
+
+
+SET GLOBAL event_scheduler = ON;                                                                      } STEP 1 :- Run this once in MySQL 
+
+
+CREATE EVENT unlock_stuck_evaluations                                                                 }
+ON SCHEDULE EVERY 15 MINUTE                                                                           }
+DO
+UPDATE prescriptions                                                                                  }  STEP 2 :- 
+SET
+    status = 'pending',                                                                               }
+    locked_by = NULL,
+    locked_at = NULL                                                                                  }
+WHERE
+    status = 'eval-busy'
+    AND locked_at < NOW() - INTERVAL 80 MINUTE;                                                       }
+
+
+
+
+
+
+CREATE EVENT unlock_stuck_expert
+ON SCHEDULE EVERY 15 MINUTE
+DO
+UPDATE prescriptions
+SET
+    status = 'reviewed',
+    locked_by = NULL,
+    locked_at = NULL
+WHERE
+    status = 'expert_busy'
+    AND locked_at < (NOW() - INTERVAL 80 MINUTE);
+
+
+
+
+
+
+Set Environment Variable in XAMPP
+
+Open:   C:\xampp\apache\conf\httpd.conf
+
+Add this line at the bottom of the file:
+
+# Custom Environment Variables
+SetEnv SMTP_PASS bviuuyyjcidddawl
+
+# Database credentials
+SetEnv DB_HOST localhost
+SetEnv DB_USER root
+SetEnv DB_PASS 
+SetEnv DB_NAME secure_app
+SetEnv DB_PORT 3306
