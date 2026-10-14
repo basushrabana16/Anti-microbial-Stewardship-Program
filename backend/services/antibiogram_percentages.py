@@ -27,11 +27,14 @@ def get_antibiogram(
     sample_type="all",
     organisms=None,
     antibiotics=None,
-    start_date=None,      # <-- ADDED
-    end_date=None          # <-- ADDED
+    from_month=None,      # <-- CHANGED: was start_date
+    to_month=None         # <-- CHANGED: was end_date
 ):
     """
     Returns organism-wise antibiogram percentages.
+
+    from_month / to_month: "YYYY-MM" strings (or None),
+    applied to prescription_date.
     """
 
     # -------------------------------------------------
@@ -46,8 +49,8 @@ def get_antibiogram(
         block=block,
         sample_type=sample_type,
         organisms=organisms,
-        start_date=start_date,     # <-- ADDED
-        end_date=end_date           # <-- ADDED
+        from_month=from_month,     # <-- CHANGED
+        to_month=to_month           # <-- CHANGED
     )
 
     if df.empty:

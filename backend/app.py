@@ -178,6 +178,59 @@ def get_query_filter(name):
 
     return normalize_filter_list(values)
 
+# =====================================================
+# GET QUERY MONTH (YYYY-MM)
+# =====================================================
+
+def get_query_month(name):
+    """
+    Reads a single "YYYY-MM" query parameter.
+
+    Example:  ?from_month=2025-01
+
+    Returns the string, or None if missing/empty.
+    Raises ValueError if the format is wrong.
+    """
+
+    value = request.args.get(name, "").strip()
+
+    if not value:
+        return None
+
+    # validates the format; raises ValueError if invalid
+    pd.to_datetime(value, format="%Y-%m")
+
+    return value
+
+# =====================================================
+# GET BODY MONTH (YYYY-MM) FROM JSON
+# =====================================================
+
+def get_body_month(data, name):
+    """
+    Reads a single "YYYY-MM" value from a JSON body (dict).
+
+    Example body:  {"from_month": "2025-01"}
+
+    Returns the string, or None if missing/empty.
+    Raises ValueError if the format is wrong.
+    """
+
+    value = data.get(name)
+
+    if value is None:
+        return None
+
+    value = str(value).strip()
+
+    if not value:
+        return None
+
+    # validates the format; raises ValueError if invalid
+    pd.to_datetime(value, format="%Y-%m")
+
+    return value
+
 
 # =====================================================
 # ANTIBIOGRAM OPTIONS
@@ -204,6 +257,10 @@ def antibiogram_options():
             "organisms"
         )
 
+        from_month=get_query_month("from_month")
+
+        to_month = get_query_month("to_month")
+
 
         result = get_antibiogram_options(
 
@@ -213,7 +270,11 @@ def antibiogram_options():
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -260,6 +321,14 @@ def antibiogram():
             "antibiotics"
         )
 
+        from_month = get_query_month(
+            "from_month"
+        )
+
+        to_month = get_query_month(
+            "to_month"
+        )
+
 
         result = get_antibiogram(
 
@@ -271,7 +340,11 @@ def antibiogram():
 
             organisms=organisms,
 
-            antibiotics=antibiotics
+            antibiotics=antibiotics,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -287,7 +360,7 @@ def antibiogram():
                 f"Could not generate antibiogram: {str(e)}"
 
         }), 500
-
+    
 
 # =====================================================
 # ORGANISM SUMMARY
@@ -305,6 +378,13 @@ def organisms():
         districts = request.args.getlist("district")
         blocks = request.args.getlist("block")
         sample_types = request.args.getlist("sample_type")
+
+        # =================================================
+        # READ MONTH-YEAR RANGE
+        # =================================================
+
+        from_month = get_query_month("from_month")
+        to_month = get_query_month("to_month")
 
         # =================================================
         # DEFAULT TO ALL
@@ -329,7 +409,11 @@ def organisms():
 
             block=blocks,
 
-            sample_type=sample_types
+            sample_type=sample_types,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -344,6 +428,7 @@ def organisms():
 
         }), 500
 
+    
 # =====================================================
 # ASSOCIATION OPTIONS
 # =====================================================
@@ -369,6 +454,14 @@ def association_options():
             "organisms"
         )
 
+        from_month = get_query_month(
+            "from_month"
+        )
+
+        to_month = get_query_month(
+            "to_month"
+        )
+
 
         result = get_association_options(
 
@@ -378,7 +471,11 @@ def association_options():
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -394,7 +491,6 @@ def association_options():
                 f"Could not load association options: {str(e)}"
 
         }), 500
-
 
 # =====================================================
 # ASSOCIATION TEST
@@ -430,6 +526,16 @@ def association_test():
             data.get("antibiotics")
         )
 
+        from_month = get_body_month(
+            data,
+            "from_month"
+        )
+
+        to_month = get_body_month(
+            data,
+            "to_month"
+        )
+
 
         result = run_association_test(
 
@@ -449,7 +555,11 @@ def association_test():
                 "dependent_variable"
             ),
 
-            antibiotics=antibiotics
+            antibiotics=antibiotics,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -471,7 +581,6 @@ def association_test():
             "error": str(e)
 
         }), 500
-
 
 
 
@@ -564,6 +673,14 @@ def regression_options():
             "organisms"
         )
 
+        from_month = get_query_month(
+            "from_month"
+        )
+
+        to_month = get_query_month(
+            "to_month"
+        )
+
 
         options = get_regression_options(
 
@@ -573,7 +690,11 @@ def regression_options():
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -596,7 +717,6 @@ def regression_options():
                 str(exc)
 
         }), 500
-
 
 # =====================================================
 # DETERMINE REGRESSION MODEL
@@ -759,6 +879,18 @@ def regression():
 
         print(f"Filters: district={district}, block={block}, sample_type={sample_type}, organisms={organisms}")
 
+        from_month = get_body_month(
+            data,
+            "from_month"
+        )
+
+        to_month = get_body_month(
+            data,
+            "to_month"
+        )
+
+        print(f"Filters: district={district}, block={block}, sample_type={sample_type}, organisms={organisms}, from_month={from_month}, to_month={to_month}")
+
 
         # =================================================
         # REGRESSION VARIABLES
@@ -875,7 +1007,11 @@ def regression():
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,
+
+            to_month=to_month
 
         )
 
@@ -1115,7 +1251,13 @@ def regression():
                     sample_type,
 
                 "organisms":
-                    organisms
+                    organisms,
+
+                "from_month":
+                    from_month,
+
+                "to_month":
+                    to_month
 
             },
 
@@ -2016,6 +2158,20 @@ def regression_preview():
             []
         )
 
+        # =================================================
+        # READ MONTH-YEAR RANGE   (NEW)
+        # =================================================
+
+        from_month = get_body_month(
+            data,
+            "from_month"
+        )
+
+        to_month = get_body_month(
+            data,
+            "to_month"
+        )
+
 
         dependent_variable = data.get(
             "dependent_variable"
@@ -2089,7 +2245,11 @@ def regression_preview():
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,       # NEW
+
+            to_month=to_month            # NEW
 
         )
 

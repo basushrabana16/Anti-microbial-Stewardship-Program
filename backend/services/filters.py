@@ -1,6 +1,6 @@
 from database.connection import get_connection
 from services.query_builder import get_analysis_dataframe
-import pandas as pd  # <-- ADDED: needed for pd.to_datetime
+import pandas as pd
 
 
 # =====================================================
@@ -150,35 +150,51 @@ def apply_multi_filter(df, column, selection):
 
 
 # =====================================================
-# APPLY DATE RANGE FILTER   <-- ADDED: new function
+# APPLY MONTH-YEAR RANGE FILTER   <-- REPLACES apply_date_filter
 # =====================================================
 
-def apply_date_filter(df, column, start_date=None, end_date=None):
+def apply_month_filter(df, column, from_month=None, to_month=None):
     """
-    Applies a date-range filter to a dataframe.
+    Keeps rows whose `column` falls between from_month and
+    to_month. Both months are inclusive (whole months).
 
-    If both start_date and end_date are None,
+    If both from_month and to_month are None / empty,
     no filtering is applied.
 
-    start_date / end_date accepted as:
-        "YYYY-MM-DD" strings, or None
+    from_month / to_month accepted as:
+        "YYYY-MM" strings, or None
+
+    Example:
+        from_month="2025-01", to_month="2025-03"
+        -> keeps 01 Jan 2025 up to and including 31 Mar 2025
     """
 
     if df.empty or column not in df.columns:
         return df
 
-    if not start_date and not end_date:
+    from_month = str(from_month).strip() if from_month else ""
+    to_month = str(to_month).strip() if to_month else ""
+
+    if not from_month and not to_month:
         return df
 
     dates = pd.to_datetime(df[column], errors="coerce")
 
     mask = pd.Series(True, index=df.index)
 
-    if start_date:
-        mask &= dates >= pd.to_datetime(start_date)
+    if from_month:
+        start = pd.to_datetime(from_month + "-01", errors="coerce")
 
-    if end_date:
-        mask &= dates <= pd.to_datetime(end_date)
+        if pd.notna(start):
+            mask &= dates >= start
+
+    if to_month:
+        end = pd.to_datetime(to_month + "-01", errors="coerce")
+
+        if pd.notna(end):
+            # first day of the NEXT month (exclusive),
+            # so the entire "to" month is included
+            mask &= dates < (end + pd.offsets.MonthBegin(1))
 
     return df[mask]
 
@@ -193,15 +209,15 @@ def filter_dataframe(
     block="all",
     sample_type="all",
     organisms=None,
-    start_date=None,      # <-- ADDED
-    end_date=None         # <-- ADDED
+    from_month=None,      # <-- CHANGED: was start_date
+    to_month=None         # <-- CHANGED: was end_date
 ):
     """
     Applies the selected filters to the normalized dataframe.
 
     Filtering hierarchy:
 
-        Time Duration        <-- ADDED
+        Time Duration (Month-Year, prescription_date)
             ↓
         District
             ↓
@@ -216,14 +232,14 @@ def filter_dataframe(
         return df
 
     # -------------------------------------------------
-    # TIME DURATION   <-- ADDED
+    # TIME DURATION (MONTH-YEAR, prescription_date)
     # -------------------------------------------------
 
-    df = apply_date_filter(
+    df = apply_month_filter(
         df,
-        "collection_date",   # change this if your normalized column is named differently
-        start_date,
-        end_date
+        "prescription_date",
+        from_month,
+        to_month
     )
 
     # -------------------------------------------------
@@ -299,15 +315,15 @@ def get_antibiogram_options(
     block="all",
     sample_type="all",
     organisms=None,
-    start_date=None,      # <-- ADDED
-    end_date=None         # <-- ADDED
+    from_month=None,      # <-- CHANGED: was start_date
+    to_month=None         # <-- CHANGED: was end_date
 ):
     """
     Returns cascading filter options.
 
     Cascade:
 
-        Time Duration    <-- ADDED
+        Time Duration (Month-Year, prescription_date)
             ↓
         District
             ↓
@@ -324,7 +340,7 @@ def get_antibiogram_options(
 
     if df.empty:
         return {
-            "date_range": {"min": None, "max": None},  # <-- ADDED
+            "date_range": {"min": None, "max": None},
             "districts": ["all"],
             "blocks": ["all"],
             "sample_types": ["all"],
@@ -333,22 +349,24 @@ def get_antibiogram_options(
         }
 
     # =================================================
-    # 0. DATE RANGE OPTIONS   <-- ADDED
+    # 0. MONTH-YEAR RANGE OPTIONS
     # =================================================
 
-    # The date picker's selectable bounds must ALWAYS
+    # The picker's selectable bounds must ALWAYS
     # reflect the full dataset, not the currently
-    # selected range — same logic as district_options
-    # below always showing all districts.
+    # selected range.
+    #
+    # Values are returned as "YYYY-MM" (what
+    # <input type="month"> expects).
 
-    if "collection_date" in df.columns:
+    if "prescription_date" in df.columns:
         valid_dates = pd.to_datetime(
-            df["collection_date"], errors="coerce"
+            df["prescription_date"], errors="coerce"
         ).dropna()
 
         date_range = {
-            "min": valid_dates.min().strftime("%Y-%m-%d") if not valid_dates.empty else None,
-            "max": valid_dates.max().strftime("%Y-%m-%d") if not valid_dates.empty else None
+            "min": valid_dates.min().strftime("%Y-%m") if not valid_dates.empty else None,
+            "max": valid_dates.max().strftime("%Y-%m") if not valid_dates.empty else None
         }
     else:
         date_range = {"min": None, "max": None}
@@ -357,21 +375,18 @@ def get_antibiogram_options(
     # 1. DISTRICT OPTIONS
     # =================================================
 
-    # District dropdown must ALWAYS show all districts
-    # because district is the first-level filter.
-    # NOTE: district options should still respect the
-    # selected time duration, since date is now the
-    # top-level scope.
+    # District options respect the selected time
+    # duration, since time is the top-level scope.
 
-    date_scoped_df = apply_date_filter(     # <-- ADDED
+    date_scoped_df = apply_month_filter(
         df,
-        "collection_date",
-        start_date,
-        end_date
+        "prescription_date",
+        from_month,
+        to_month
     )
 
     district_options = unique_values(
-        date_scoped_df,     # <-- MODIFIED: was `df`
+        date_scoped_df,
         "district"
     )
 
@@ -383,7 +398,7 @@ def get_antibiogram_options(
     # (within the selected time duration).
 
     block_df = apply_multi_filter(
-        date_scoped_df,     # <-- MODIFIED: was `df`
+        date_scoped_df,
         "district",
         district
     )
@@ -401,7 +416,7 @@ def get_antibiogram_options(
     # time duration + district + block
 
     sample_type_df = apply_multi_filter(
-        date_scoped_df,     # <-- MODIFIED: was `df`
+        date_scoped_df,
         "district",
         district
     )
@@ -431,7 +446,7 @@ def get_antibiogram_options(
     # other organisms from the dropdown.
 
     organism_df = apply_multi_filter(
-        date_scoped_df,     # <-- MODIFIED: was `df`
+        date_scoped_df,
         "district",
         district
     )
@@ -486,8 +501,8 @@ def get_antibiogram_options(
         block=block,
         sample_type=sample_type,
         organisms=organisms,
-        start_date=start_date,      # <-- ADDED
-        end_date=end_date            # <-- ADDED
+        from_month=from_month,
+        to_month=to_month
     )
 
     # Get antibiotic column metadata from the ORIGINAL
@@ -512,7 +527,7 @@ def get_antibiogram_options(
 
     return {
 
-        "date_range":       # <-- ADDED
+        "date_range":
             date_range,
 
         "districts":

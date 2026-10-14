@@ -4,6 +4,8 @@
 
    Cascading hierarchy:
 
+       Time Duration (From Month / To Month)   <-- NEW
+           ↓
        District
            ↓
        Block
@@ -19,6 +21,11 @@
        All
        OR
        Multiple selected values
+
+   The time duration filter uses two month pickers
+   (<input type="month">) and is applied to the
+   prescription_date column on the backend.
+   Values are "YYYY-MM" strings; "" means no limit.
 
    Used by:
        - Organism Summary
@@ -51,6 +58,10 @@ FilterManager.endpoint =
 
 FilterManager.state = {
 
+    from_month: "",        /* NEW */
+
+    to_month: "",          /* NEW */
+
     district: ["all"],
 
     block: ["all"],
@@ -69,6 +80,10 @@ FilterManager.state = {
    ========================================================== */
 
 FilterManager.controls = {
+
+    fromMonth: null,       /* NEW */
+
+    toMonth: null,         /* NEW */
 
     district: null,
 
@@ -105,9 +120,27 @@ FilterManager.initialise = async function () {
 FilterManager.cacheControls = function () {
 
     /*
-       ALL filters are now multi-select.
+       NEW: month-year pickers.
 
-       This is important because the requirement is:
+       These are plain <input type="month"> elements:
+
+           <input type="month" id="fromMonth">
+           <input type="month" id="toMonth">
+
+       If a page does not have them, the controls stay
+       null and everything else works as before.
+    */
+
+    this.controls.fromMonth =
+        document.getElementById("fromMonth");
+
+
+    this.controls.toMonth =
+        document.getElementById("toMonth");
+
+
+    /*
+       ALL other filters are multi-select.
 
        District:
            All OR multiple districts
@@ -190,6 +223,12 @@ FilterManager.buildControl = function (id, mode) {
 FilterManager.getFilters = function () {
 
     return {
+
+        from_month:
+            this.state.from_month,          /* NEW */
+
+        to_month:
+            this.state.to_month,            /* NEW */
 
         district:
             [...this.state.district],
@@ -288,6 +327,33 @@ FilterManager.buildQueryString = function () {
 
 
     /*
+       NEW: Time duration (month-year).
+
+       Only sent when a month is actually chosen.
+       Backend parameter names: from_month, to_month
+    */
+
+    if (this.state.from_month) {
+
+        params.append(
+            "from_month",
+            this.state.from_month
+        );
+
+    }
+
+
+    if (this.state.to_month) {
+
+        params.append(
+            "to_month",
+            this.state.to_month
+        );
+
+    }
+
+
+    /*
        District
     */
 
@@ -369,10 +435,54 @@ FilterManager.buildQueryString = function () {
 
 
 /* ==========================================================
+   APPLY MONTH PICKER BOUNDS   (NEW)
+   ========================================================== */
+
+FilterManager.applyMonthBounds = function (data) {
+
+    /*
+       The backend returns the earliest and latest
+       prescription month in the FULL dataset:
+
+           data.date_range = { min: "YYYY-MM", max: "YYYY-MM" }
+
+       Use them to limit what the pickers allow.
+    */
+
+    const range =
+        data.date_range;
+
+    if (!range)
+        return;
+
+
+    [
+        this.controls.fromMonth,
+        this.controls.toMonth
+    ].forEach(input => {
+
+        if (!input)
+            return;
+
+        if (range.min)
+            input.min = range.min;
+
+        if (range.max)
+            input.max = range.max;
+
+    });
+
+};
+
+
+/* ==========================================================
    POPULATE ALL FILTERS
    ========================================================== */
 
 FilterManager.populateFilters = function (data) {
+
+    this.applyMonthBounds(data);          /* NEW */
+
 
     this.populateControl(
 
@@ -632,6 +742,9 @@ FilterManager.updateButtonLabel = function (
 
 FilterManager.attachEvents = function () {
 
+    this.attachMonthEvents();             /* NEW */
+
+
     this.attachToggle(
         this.controls.district
     );
@@ -750,6 +863,116 @@ FilterManager.attachEvents = function () {
             }
 
         );
+
+    }
+
+};
+
+
+/* ==========================================================
+   MONTH PICKER EVENTS   (NEW)
+   ========================================================== */
+
+FilterManager.attachMonthEvents = function () {
+
+    const handler = async event => {
+
+        /*
+           Keep From <= To.
+        */
+
+        this.enforceMonthOrder(
+            event.target
+        );
+
+
+        /*
+           Save the new months.
+        */
+
+        this.updateState();
+
+
+        /*
+           Time is the top-level filter, so changing it
+           resets every dependent filter.
+        */
+
+        this.resetDependentFilters(
+            "month"
+        );
+
+
+        /*
+           Refresh cascading options.
+
+           Report data itself is NOT regenerated.
+        */
+
+        await this.loadOptions();
+
+    };
+
+
+    [
+        this.controls.fromMonth,
+        this.controls.toMonth
+    ].forEach(input => {
+
+        if (!input)
+            return;
+
+        input.addEventListener(
+            "change",
+            handler
+        );
+
+    });
+
+};
+
+
+/* ==========================================================
+   KEEP FROM <= TO   (NEW)
+   ========================================================== */
+
+FilterManager.enforceMonthOrder = function (
+    changedInput
+) {
+
+    const from =
+        this.controls.fromMonth;
+
+    const to =
+        this.controls.toMonth;
+
+
+    if (!from || !to)
+        return;
+
+    if (!from.value || !to.value)
+        return;
+
+
+    /*
+       "YYYY-MM" strings compare correctly as text.
+       If the range is reversed, move the OTHER picker
+       to match the one the user just changed.
+    */
+
+    if (from.value > to.value) {
+
+        if (changedInput === from) {
+
+            to.value = from.value;
+
+        }
+
+        else {
+
+            from.value = to.value;
+
+        }
 
     }
 
@@ -1039,6 +1262,22 @@ FilterManager.handleMultiSelection = function (
 
 FilterManager.updateState = function () {
 
+    /*
+       NEW: month pickers ("" when empty / not on page)
+    */
+
+    this.state.from_month =
+        this.controls.fromMonth
+            ? this.controls.fromMonth.value
+            : "";
+
+
+    this.state.to_month =
+        this.controls.toMonth
+            ? this.controls.toMonth.value
+            : "";
+
+
     this.state.district =
         this.getMultiValues(
             this.controls.district
@@ -1109,6 +1348,34 @@ FilterManager.getMultiValues = function (
 FilterManager.resetDependentFilters = function (
     changedControl
 ) {
+
+    /*
+       NEW: Month changed
+       → reset District, Block, Sample Type,
+         Organisms and Antibiotics
+    */
+
+    if (changedControl === "month") {
+
+        this.state.district =
+            ["all"];
+
+        this.state.block =
+            ["all"];
+
+        this.state.sample_type =
+            ["all"];
+
+        this.state.organisms =
+            ["all"];
+
+        this.state.antibiotics =
+            ["all"];
+
+        return;
+
+    }
+
 
     /*
        District changed
@@ -1382,6 +1649,10 @@ FilterManager.resetAll = async function () {
 
     this.state = {
 
+        from_month: "",          /* NEW */
+
+        to_month: "",            /* NEW */
+
         district: ["all"],
 
         block: ["all"],
@@ -1393,6 +1664,17 @@ FilterManager.resetAll = async function () {
         antibiotics: ["all"]
 
     };
+
+
+    /*
+       NEW: clear the month pickers on screen too.
+    */
+
+    if (this.controls.fromMonth)
+        this.controls.fromMonth.value = "";
+
+    if (this.controls.toMonth)
+        this.controls.toMonth.value = "";
 
 
     await this.loadOptions();

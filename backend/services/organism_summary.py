@@ -11,8 +11,8 @@ def get_organism_summary(
     district="all",
     block="all",
     sample_type="all",
-    start_date=None,      # <-- ADDED
-    end_date=None          # <-- ADDED
+    from_month=None,      # <-- CHANGED: was start_date
+    to_month=None         # <-- CHANGED: was end_date
 ):
     """
     Returns:
@@ -25,9 +25,9 @@ def get_organism_summary(
         - block
         - sample_type
 
-    Supports date range filtering via:
-        - start_date
-        - end_date
+    Supports month-year range filtering via:
+        - from_month   ("YYYY-MM")
+        - to_month     ("YYYY-MM")
     """
 
     # -------------------------------------------------
@@ -56,7 +56,7 @@ def get_organism_summary(
     # AND between different filters.
     #
     # Also applies time duration filtering via
-    # start_date / end_date on collection_date.
+    # from_month / to_month on prescription_date.
     # -------------------------------------------------
 
     df = apply_filters(
@@ -64,8 +64,8 @@ def get_organism_summary(
         district=district,
         block=block,
         sample_type=sample_type,
-        start_date=start_date,     # <-- ADDED
-        end_date=end_date            # <-- ADDED
+        from_month=from_month,     # <-- CHANGED
+        to_month=to_month           # <-- CHANGED
     )
 
     if df.empty:

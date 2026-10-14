@@ -7,7 +7,7 @@ from services.association_metadata import (
     clean_organism_list
 )
 
-import pandas as pd  # <-- ADDED: needed for date parsing/comparison
+import pandas as pd  # needed for month-year parsing/comparison
 
 
 # =====================================================
@@ -140,17 +140,21 @@ def normalize_filter_values(value):
 
 
 # =====================================================
-# NORMALIZE DATE FILTER VALUES   <-- ADDED: new function
+# NORMALIZE MONTH-YEAR FILTER VALUES   <-- REPLACES normalize_date_value
 # =====================================================
 
-def normalize_date_value(value):
+def normalize_month_value(value):
     """
-    Converts a date filter value into a pandas Timestamp,
-    or None if not provided / invalid.
+    Converts a "YYYY-MM" filter value into a pandas Timestamp
+    set to the FIRST DAY of that month, or None if not
+    provided / invalid.
 
     Accepted inputs:
-        "YYYY-MM-DD" string
+        "YYYY-MM" string  (e.g. "2025-03")
         None
+
+    Example:
+        "2025-03"  →  Timestamp("2025-03-01")
     """
 
     if value is None:
@@ -161,7 +165,10 @@ def normalize_date_value(value):
     if not value:
         return None
 
-    parsed = pd.to_datetime(value, errors="coerce")
+    parsed = pd.to_datetime(
+        value + "-01",
+        errors="coerce"
+    )
 
     if pd.isna(parsed):
         return None
@@ -179,8 +186,8 @@ def apply_filters(
     block="all",
     sample_type="all",
     organisms=None,
-    start_date=None,      # <-- ADDED
-    end_date=None          # <-- ADDED
+    from_month=None,      # <-- CHANGED: was start_date
+    to_month=None         # <-- CHANGED: was end_date
 ):
     """
     Applies the common cascading filters.
@@ -193,7 +200,7 @@ def apply_filters(
 
     Filter hierarchy:
 
-        Time Duration      <-- ADDED
+        Time Duration (Month-Year, prescription_date)
             ↓
         District
             ↓
@@ -228,35 +235,39 @@ def apply_filters(
         organisms
     )
 
-    start_date_value = normalize_date_value(   # <-- ADDED
-        start_date
+    from_month_value = normalize_month_value(
+        from_month
     )
 
-    end_date_value = normalize_date_value(     # <-- ADDED
-        end_date
+    to_month_value = normalize_month_value(
+        to_month
     )
 
 
     # =================================================
-    # TIME DURATION   <-- ADDED
+    # TIME DURATION (MONTH-YEAR, prescription_date)
     # =================================================
 
-    if start_date_value is not None or end_date_value is not None:
+    if from_month_value is not None or to_month_value is not None:
 
-        if "collection_date" in df.columns:
+        if "prescription_date" in df.columns:
 
             date_values = pd.to_datetime(
-                df["collection_date"],
+                df["prescription_date"],
                 errors="coerce"
             )
 
             mask = pd.Series(True, index=df.index)
 
-            if start_date_value is not None:
-                mask &= date_values >= start_date_value
+            if from_month_value is not None:
+                mask &= date_values >= from_month_value
 
-            if end_date_value is not None:
-                mask &= date_values <= end_date_value
+            if to_month_value is not None:
+                # first day of the NEXT month (exclusive),
+                # so the entire "to" month is included
+                mask &= date_values < (
+                    to_month_value + pd.offsets.MonthBegin(1)
+                )
 
             df = df[mask]
 
