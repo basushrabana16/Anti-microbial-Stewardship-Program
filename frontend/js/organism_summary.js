@@ -225,12 +225,45 @@ OrganismSummary.loadSummary = async function () {
    instead of:
 
    district=Udupi,Dakshina%20Kannada
+
+   NEW: from_month / to_month ("YYYY-MM") are sent
+   only when a month has been chosen.
    ========================================================== */
 
 OrganismSummary.buildQueryString = function () {
 
     const params =
         new URLSearchParams();
+
+
+    /* ==================================================
+       TIME DURATION (MONTH-YEAR)   <-- NEW
+       ================================================== */
+
+    if (this.filters.from_month) {
+
+        params.append(
+
+            "from_month",
+
+            this.filters.from_month
+
+        );
+
+    }
+
+
+    if (this.filters.to_month) {
+
+        params.append(
+
+            "to_month",
+
+            this.filters.to_month
+
+        );
+
+    }
 
 
     /* ==================================================
@@ -892,9 +925,97 @@ OrganismSummary.updateInfoStrip =
             };
 
 
+            /* ------------------------------------------
+               NEW: format "YYYY-MM" as "Jan 2025"
+            ------------------------------------------ */
+
+            const formatMonth = function (value) {
+
+                if (!value) {
+                    return "";
+                }
+
+
+                const parts =
+                    String(value).split("-");
+
+
+                if (parts.length !== 2) {
+                    return String(value);
+                }
+
+
+                const date =
+                    new Date(
+
+                        Number(parts[0]),
+
+                        Number(parts[1]) - 1,
+
+                        1
+
+                    );
+
+
+                return date.toLocaleString(
+
+                    "en-GB",
+
+                    {
+
+                        month: "short",
+
+                        year: "numeric"
+
+                    }
+
+                );
+
+            };
+
+
+            /* ------------------------------------------
+               NEW: period text
+            ------------------------------------------ */
+
+            let period = "All";
+
+            if (
+                filters.from_month &&
+                filters.to_month
+            ) {
+
+                period =
+                    formatMonth(filters.from_month) +
+                    " \u2013 " +
+                    formatMonth(filters.to_month);
+
+            }
+
+            else if (filters.from_month) {
+
+                period =
+                    "From " +
+                    formatMonth(filters.from_month);
+
+            }
+
+            else if (filters.to_month) {
+
+                period =
+                    "Up to " +
+                    formatMonth(filters.to_month);
+
+            }
+
+
             this.filtersAppliedText.textContent =
 
-                "District: " +
+                "Period: " +
+
+                period +
+
+                "  |  District: " +
 
                 formatFilter(
                     filters.district
