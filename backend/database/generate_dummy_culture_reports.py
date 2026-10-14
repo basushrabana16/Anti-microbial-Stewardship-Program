@@ -1,349 +1,367 @@
+
 import random
-from datetime import date, timedelta, datetime
+import re
+from datetime import date, datetime, time, timedelta
 
-from connection import get_connection
+import mysql.connector
 
-
-# =====================================================
+# =========================================================
 # CONFIGURATION
-# =====================================================
+# =========================================================
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "Absolutemysql#1",
+    "database": "secure_app"
+}
 
-N_RECORDS = 200
-N_SAMPLES = 10
+NUM_RECORDS = 200
+random.seed(42)
 
-
-# =====================================================
-# MASTER DATA
-# =====================================================
-
-districts = [
-    "Nadia",
-    "Hooghly",
-    "Kolkata",
-    "Murshidabad"
+# =========================================================
+# SAMPLE DATA
+# =========================================================
+SAMPLE_TYPES = [
+    "urine", "blood", "sputum", "pus",
+    "wound swab", "stool", "CSF"
 ]
 
-
-blocks = [
-    "Krishnagar",
-    "Ranaghat",
-    "Berhampore",
-    "Chinsurah"
-]
-
-
-organisms = [
+ORGANISMS = [
     "Escherichia coli",
     "Klebsiella pneumoniae",
     "Pseudomonas aeruginosa",
-    "Acinetobacter baumannii",
     "Staphylococcus aureus",
     "Enterococcus faecalis",
-    "Proteus mirabilis",
-    "Citrobacter freundii",
-    "Enterobacter cloacae"
+    "Acinetobacter baumannii",
+    "Proteus mirabilis"
 ]
 
-
-sample_types = [
-    "Urine",
-    "Blood",
-    "Pus",
-    "Sputum",
-    "Endotracheal Aspirate",
-    "Wound Swab"
+REFERRERS = [
+    "OPD", "Emergency", "Medicine",
+    "Surgery", "ICU", "Pediatrics"
 ]
 
-
-referred_by = [
-    "Medicine",
-    "Surgery",
-    "ICU",
-    "Pediatrics",
-    "Gynecology",
-    "Orthopedics"
+CULTURE_VALUES = ["positive", "no growth"]
+SUSCEPTIBILITY_VALUES = [
+    "susceptible", "intermediate", "resistant"
 ]
 
-
-antibiotics = [
-
-    "amoxycillin",
-    "moxifloxacin",
-    "amoxyclav",
-    "norfloxacin",
-    "ampicillin",
-    "ofloxacin",
-    "oxacillin",
-    "azithromycin",
-    "penicillin",
-    "clarithromycin",
-    "piperacillin",
-    "erythromycin",
-    "piperacillin_tazobactam",
-    "imipenem",
-    "cephalexin",
-    "meropenem",
-    "cefuroxime",
-    "doxycycline",
-    "ceftriaxone",
-    "tetracycline",
-    "cefotaxime",
-    "linezolid",
-    "ceftazidime",
-    "clindamycin",
-    "cefixime",
-    "vancomycin",
-    "cefepime",
-    "cotrimoxazole",
-    "cefoxitin",
-    "chloramphenicol",
-    "amikacin",
-    "nitrofurantoin",
-    "gentamicin",
-    "aztreonam",
-    "netilmicin",
-    "fosfomycin",
-    "nalidixic_acid",
-    "ciprofloxacin",
-    "gatifloxacin",
-    "levofloxacin"
-
+REPORT_KEYWORDS = [
+    "sample_id",
+    "lab_no",
+    "collection_date",
+    "sample_type",
+    "collection_time",
+    "test_date",
+    "referred_by",
+    "reporting_date",
+    "culture_result",
+    "organism",
+    "report_file",
+    "report_original_name",
+    "report_stored_name",
+    "report_file_name",
+    "report_size",
+    "report_mime",
+    "uploaded_by",
+    "uploader",
+    "uploaded_at",
+    "created_at"
 ]
 
+# =========================================================
+# HELPER FUNCTIONS
+# =========================================================
+def enum_values(column_type):
+    """Extract valid values from a MySQL ENUM definition."""
+    if not column_type.lower().startswith("enum("):
+        return []
 
-susceptibility = [
-    "susceptible",
-    "intermediate",
-    "resistant"
-]
+    return re.findall(r"'((?:[^'\\]|\\.)*)'", column_type)
 
 
-# =====================================================
-# RANDOM DATE
-# =====================================================
-
-def random_date():
-
-    start = date(2024, 1, 1)
-
-    end = date(2025, 12, 31)
-
-    return (
-        start +
-        timedelta(
-            days=random.randint(
-                0,
-                (end - start).days
-            )
-        )
+def random_date(start_year=2024, end_year=2026):
+    start = date(start_year, 1, 1)
+    end = date(end_year, 12, 31)
+    return start + timedelta(
+        days=random.randint(0, (end - start).days)
     )
 
 
-# =====================================================
-# CREATE ONE DATABASE ROW
-# =====================================================
+def random_time():
+    return time(
+        random.randint(7, 19),
+        random.choice([0, 15, 30, 45])
+    )
 
-def generate_row(record_id):
 
-    row = {}
+def matches_report_column(column_name, report_number, column_type):
+    """Identify C/S report columns, excluding uploader ID fields."""
+    name = column_name.lower()
+    suffix = f"_{report_number}"
 
-    # -------------------------------------------------
-    # Identification fields
-    # -------------------------------------------------
+    if not name.endswith(suffix):
+        return False
 
-    row["study_id"] = f"STUDY-{record_id:04d}"
+    base_name = name[:-len(suffix)]
 
-    row["cs_sample_send"] = random.choice(["yes", "no"])
+    # Exclude uploaded_by columns completely.
+    if "uploaded_by" in base_name:
+        return False
 
-    row["regn_no"] = f"REG-{record_id:05d}"
+    allowed = {v.lower() for v in enum_values(column_type)}
 
-    row["prescription_date"] = random_date()
+    # Include antibiotic susceptibility columns.
+    if {
+        "susceptible", "intermediate", "resistant"
+    }.issubset(allowed):
+        return True
 
-    # -------------------------------------------------
-    # Patient information - Using correct column names from schema
-    # -------------------------------------------------
+    return any(keyword in base_name for keyword in REPORT_KEYWORDS)
 
-    row["patient_name"] = f"Patient_{record_id}"
 
-    # Use age_years (not age) - this matches the database schema
-    age = random.randint(1, 90)
-    row["age_years"] = age
-    row["age_months"] = random.randint(0, 11)
-    row["age_days"] = random.randint(0, 30)
+def generate_value(column_name, column_type):
+    """Generate a value compatible with the column's data type."""
+    name = column_name.lower()
+    base_name = re.sub(r"_\d+$", "", name)
+    col_type = column_type.lower()
+    allowed = enum_values(column_type)
 
-    # gender - matches database schema
-    row["gender"] = random.choice(["male", "female"])
+    # Use valid ENUM values defined in the database.
+    if allowed:
+        allowed_lower = {v.lower() for v in allowed}
 
-    # district and block - match database schema
-    row["district"] = random.choice(districts)
-    row["block"] = random.choice(blocks)
+        if "culture_result" in base_name:
+            preferred = [
+                v for v in allowed
+                if v.lower() in {
+                    "positive", "no growth", "negative"
+                }
+            ]
+            return random.choice(preferred or allowed)
 
-    # -------------------------------------------------
-    # Ten culture report sets
-    # -------------------------------------------------
+        if {
+            "susceptible", "intermediate", "resistant"
+        }.issubset(allowed_lower):
+            return random.choice(allowed)
 
-    for sample in range(1, N_SAMPLES + 1):
+        if "sample_type" in base_name:
+            preferred = [
+                v for v in allowed
+                if v.lower() in {
+                    "urine", "blood", "sputum", "pus",
+                    "wound swab", "stool", "csf",
+                    "throat swab", "other"
+                }
+            ]
+            return random.choice(preferred or allowed)
 
-        positive = random.random() < 0.65
+        return random.choice(allowed)
 
-        collection_date = random_date()
+    # Date/time types.
+    if col_type == "date" or col_type.startswith("date "):
+        return random_date()
 
-        test_date = collection_date + timedelta(days=2)
+    if col_type == "time" or col_type.startswith("time "):
+        return random_time()
 
-        reporting_date = test_date + timedelta(days=2)
+    if "datetime" in col_type or "timestamp" in col_type:
+        return datetime.combine(random_date(), random_time())
 
-        sample_id = f"S{record_id:04d}-{sample}"
+    # Numeric types.
+    if any(t in col_type for t in (
+        "tinyint", "smallint", "mediumint", "int", "bigint"
+    )):
+        if "size" in base_name:
+            return random.randint(20000, 500000)
+        return random.randint(1, 1000)
 
-        row[f"sample_id_{sample}"] = sample_id
+    if any(t in col_type for t in ("decimal", "float", "double")):
+        return round(random.uniform(1, 100), 2)
 
-        row[f"lab_no_{sample}"] = f"L{random.randint(10000, 99999)}"
+    # Text fields.
+    if any(t in col_type for t in (
+        "char", "text", "tinytext", "mediumtext", "longtext"
+    )):
+        if "organism" in base_name:
+            return random.choice(ORGANISMS)
+        if "sample_type" in base_name:
+            return random.choice(SAMPLE_TYPES)
+        if "referred_by" in base_name:
+            return random.choice(REFERRERS)
+        if "mime" in base_name:
+            return "application/pdf"
+        if "original_name" in base_name or "file_name" in base_name:
+            return f"CS_Report_{random.randint(10000, 99999)}.pdf"
+        if "stored_name" in base_name:
+            return f"{random.randint(100000, 999999)}_report.pdf"
+        if "lab_no" in base_name:
+            return f"LAB-{random.randint(10000, 99999)}"
+        if "sample_id" in base_name:
+            return f"CS-{random.randint(100000, 999999)}"
+        return f"Dummy_{random.randint(1000, 9999)}"
 
-        row[f"collection_date_{sample}"] = collection_date
+    # Unknown or unsupported field: leave NULL.
+    return None
 
-        row[f"sample_type_{sample}"] = random.choice(sample_types)
 
-        row[f"collection_time_{sample}"] = "09:30:00"
+# =========================================================
+# CONNECT TO MYSQL
+# =========================================================
+connection = mysql.connector.connect(**DB_CONFIG)
+cursor = connection.cursor(dictionary=True)
 
-        row[f"test_date_{sample}"] = test_date
+try:
+    cursor.execute("""
+        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE,
+               COLUMN_DEFAULT, EXTRA
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s
+          AND TABLE_NAME = 'prescriptions'
+        ORDER BY ORDINAL_POSITION
+    """, (DB_CONFIG["database"],))
 
-        row[f"referred_by_{sample}"] = random.choice(referred_by)
+    schema = cursor.fetchall()
 
-        row[f"reporting_date_{sample}"] = reporting_date
-
-        row[f"culture_result_{sample}"] = "positive" if positive else "no growth"
-
-        row[f"organism_identification_{sample}"] = (
-            random.choice(organisms) if positive else None
+    if not schema:
+        raise RuntimeError(
+            "The prescriptions table was not found."
         )
 
-        # -------------------------------------------------
-        # Antibiogram susceptibility
-        # -------------------------------------------------
+    columns_by_name = {
+        row["COLUMN_NAME"]: row for row in schema
+    }
 
-        for antibiotic in antibiotics:
+    # Detect C/S report columns, excluding uploaded_by_*.
+    report_columns = []
 
-            row[f"{antibiotic}_{sample}"] = (
+    for report_number in range(1, 11):
+        for column in schema:
+            if matches_report_column(
+                column["COLUMN_NAME"],
+                report_number,
+                column["COLUMN_TYPE"]
+            ):
+                report_columns.append(column["COLUMN_NAME"])
 
-                random.choice(susceptibility)
+    report_columns = list(dict.fromkeys(report_columns))
 
-                if positive
+    if not report_columns:
+        raise RuntimeError("No C/S report columns were detected.")
 
-                else None
+    print(f"Detected {len(report_columns)} C/S report columns.")
+    print("Uploader ID columns will not be inserted.")
 
-            )
+    # Check mandatory columns not included in this INSERT.
+    required_columns = [
+        row["COLUMN_NAME"]
+        for row in schema
+        if row["IS_NULLABLE"] == "NO"
+        and row["COLUMN_DEFAULT"] is None
+        and "auto_increment" not in str(row["EXTRA"]).lower()
+        and row["COLUMN_NAME"] not in report_columns
+    ]
 
-        # -------------------------------------------------
-        # Report metadata
-        # -------------------------------------------------
-
-        row[f"report_original_name_{sample}"] = f"{sample_id}.pdf"
-
-        row[f"report_stored_name_{sample}"] = f"stored_{sample_id}.pdf"
-
-        row[f"report_size_{sample}"] = random.randint(50000, 300000)
-
-        row[f"report_mime_{sample}"] = "application/pdf"
-
-        row[f"uploaded_by_id_{sample}"] = 1
-
-        row[f"uploaded_by_username_{sample}"] = "admin"
-
-        row[f"created_at_{sample}"] = datetime.now()
-
-    return row
-
-
-# =====================================================
-# INSERT DATA
-# =====================================================
-
-def insert_dummy_data():
-
-    print("\n" + "=" * 50)
-    print("GENERATING DUMMY CULTURE DATA")
-    print("=" * 50)
-    print(f"Number of prescriptions: {N_RECORDS}")
-    print(f"Samples per prescription: {N_SAMPLES}")
-    print(f"Total reports expected: {N_RECORDS * N_SAMPLES}")
-    print("=" * 50 + "\n")
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Check if table has data and ask for confirmation
-    cursor.execute("SELECT COUNT(*) FROM prescriptions")
-    count = cursor.fetchone()[0]
-
-    if count > 0:
-        print(f"WARNING: prescriptions table already has {count} records.")
-        response = input("Do you want to delete existing data and regenerate? (y/n): ")
-        if response.lower() == 'y':
-            cursor.execute("TRUNCATE TABLE prescriptions")
-            conn.commit()
-            print("Existing data truncated.\n")
-        else:
-            print("Exiting without changes.")
-            cursor.close()
-            conn.close()
-            return
-
-    print("Generating data...\n")
-
-    for i in range(1, N_RECORDS + 1):
-
-        row = generate_row(i)
-
-        columns = list(row.keys())
-
-        values = [row[col] for col in columns]
-
-        placeholders = ",".join(["%s"] * len(columns))
-
-        query = f"""
-        INSERT INTO prescriptions
-        (
-            {','.join(columns)}
+    if required_columns:
+        raise RuntimeError(
+            "Required columns are missing from this report-only "
+            "INSERT: " + ", ".join(required_columns)
+            + ". Populate these fields or ensure they have "
+              "valid defaults before proceeding."
         )
-        VALUES
-        (
-            {placeholders}
+
+    quoted_columns = ", ".join(
+        f"`{column}`" for column in report_columns
+    )
+    placeholders = ", ".join(["%s"] * len(report_columns))
+
+    insert_sql = (
+        f"INSERT INTO `prescriptions` ({quoted_columns}) "
+        f"VALUES ({placeholders})"
+    )
+
+    # =====================================================
+    # GENERATE PRESCRIPTION ROWS WITH 1–10 REPORT SETS
+    # =====================================================
+    for record_number in range(NUM_RECORDS):
+        values = {column: None for column in report_columns}
+
+        number_of_reports = random.randint(1, 10)
+
+        for report_number in range(1, 11):
+            if report_number > number_of_reports:
+                continue
+
+            culture_column = f"culture_result_{report_number}"
+
+            # Generate a culture outcome that matches the
+            # actual ENUM spelling/capitalization in MySQL.
+            culture_result = None
+
+            if culture_column in columns_by_name:
+                allowed = enum_values(
+                    columns_by_name[culture_column]["COLUMN_TYPE"]
+                )
+                choices = [
+                    v for v in allowed
+                    if v.lower() in {"positive", "no growth", "negative"}
+                ]
+                culture_result = (
+                    random.choice(choices)
+                    if choices
+                    else random.choice(CULTURE_VALUES)
+                )
+            else:
+                culture_result = random.choice(CULTURE_VALUES)
+
+            for column_name in report_columns:
+                suffix = f"_{report_number}"
+
+                if not column_name.lower().endswith(suffix):
+                    continue
+
+                base_name = column_name[:-len(suffix)].lower()
+                column_type = columns_by_name[column_name]["COLUMN_TYPE"]
+                allowed_lower = {
+                    v.lower() for v in enum_values(column_type)
+                }
+
+                if "culture_result" in base_name:
+                    values[column_name] = culture_result
+
+                elif "organism" in base_name:
+                    values[column_name] = (
+                        random.choice(ORGANISMS)
+                        if culture_result.lower() == "positive"
+                        else None
+                    )
+
+                elif {
+                    "susceptible", "intermediate", "resistant"
+                }.issubset(allowed_lower):
+                    values[column_name] = (
+                        random.choice(SUSCEPTIBILITY_VALUES)
+                        if culture_result.lower() == "positive"
+                        else None
+                    )
+
+                else:
+                    values[column_name] = generate_value(
+                        column_name, column_type
+                    )
+
+        cursor.execute(
+            insert_sql,
+            [values[column] for column in report_columns]
         )
-        """
 
-        cursor.execute(query, values)
+    connection.commit()
+    print(f"Successfully inserted {NUM_RECORDS} dummy records.")
 
-        if i % 25 == 0:
-            print(f"  {i} records inserted...")
+except Exception:
+    connection.rollback()
+    raise
 
-    conn.commit()
+finally:
     cursor.close()
-    conn.close()
-
-    print("\n" + "=" * 50)
-    print("DUMMY DATA GENERATION COMPLETED")
-    print("=" * 50)
-    print(f"Total prescriptions: {N_RECORDS}")
-    print(f"Total reports (rows in analysis): {N_RECORDS * N_SAMPLES}")
-    print("")
-    print("Data summary - ALL PREDICTOR COLUMNS HAVE COMPLETE DATA:")
-    print(f"  - age_years: 1-90 (never missing)")
-    print(f"  - gender: male/female (never missing)")
-    print(f"  - district: always populated")
-    print(f"  - block: always populated")
-    print(f"  - sample_type: always populated")
-    print(f"  - referred_by: always populated")
-    print(f"  - culture_result: positive/no growth (never missing)")
-    print(f"  - organism_identification: populated for positive cultures")
-    print(f"  - antibiogram: populated for positive cultures")
-    print("")
-    print("NOTE: age_group will be automatically derived from age_years")
-    print("      by add_derived_columns() in association_metadata.py")
-    print("=" * 50 + "\n")
-
-
-# =====================================================
-# MAIN
-# =====================================================
-
-if __name__ == "__main__":
-    insert_dummy_data()
+    connection.close()

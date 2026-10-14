@@ -5,13 +5,6 @@ USE secure_app;
 
 
 
-CREATE DATABASE IF NOT EXISTS secure_app
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-USE secure_app;
-
-
-
 CREATE TABLE users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
@@ -140,6 +133,8 @@ CREATE TABLE prescriptions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+SET SESSION innodb_strict_mode = OFF;
+ALTER TABLE prescriptions ROW_FORMAT=DYNAMIC;
 ALTER TABLE prescriptions
 
 /* =========================
@@ -1290,58 +1285,4 @@ ADD COLUMN uploaded_by_id_10 INT DEFAULT NULL,
 ADD COLUMN uploaded_by_username_10 TEXT DEFAULT NULL,
 ADD COLUMN created_at_10 TIMESTAMP NULL DEFAULT NULL;
 
-
-
-
-SET GLOBAL event_scheduler = ON;                                                                      } STEP 1 :- Run this once in MySQL 
-
-
-CREATE EVENT unlock_stuck_evaluations                                                                 }
-ON SCHEDULE EVERY 15 MINUTE                                                                           }
-DO
-UPDATE prescriptions                                                                                  }  STEP 2 :- 
-SET
-    status = 'pending',                                                                               }
-    locked_by = NULL,
-    locked_at = NULL                                                                                  }
-WHERE
-    status = 'eval-busy'
-    AND locked_at < NOW() - INTERVAL 80 MINUTE;                                                       }
-
-
-
-
-
-
-CREATE EVENT unlock_stuck_expert
-ON SCHEDULE EVERY 15 MINUTE
-DO
-UPDATE prescriptions
-SET
-    status = 'reviewed',
-    locked_by = NULL,
-    locked_at = NULL
-WHERE
-    status = 'expert_busy'
-    AND locked_at < (NOW() - INTERVAL 80 MINUTE);
-
-
-
-
-
-
-Set Environment Variable in XAMPP
-
-Open:   C:\xampp\apache\conf\httpd.conf
-
-Add this line at the bottom of the file:
-
-# Custom Environment Variables
-SetEnv SMTP_PASS bviuuyyjcidddawl
-
-# Database credentials
-SetEnv DB_HOST localhost
-SetEnv DB_USER root
-SetEnv DB_PASS 
-SetEnv DB_NAME secure_app
-SetEnv DB_PORT 3306
+SET SESSION innodb_strict_mode = ON;
