@@ -1133,3 +1133,54 @@ button, input{
     white-space:nowrap;
 }
 
+/* ==========================================================
+   MONTH PICKER (From / To)
+   Replace the earlier .month-input rules with this block.
+   Shows "Select month" instead of the dashes when empty.
+   ========================================================== */
+
+.month-wrap {
+    position: relative;
+}
+
+.filter-group .month-input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid #d5dde8;
+    border-radius: 12px;
+    background: #ffffff;
+    color: inherit;
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.filter-group .month-input:focus {
+    outline: none;
+    border-color: #1d5fa8;
+}
+
+/* Empty (invalid because of "required"): hide the dashes */
+.month-input:invalid::-webkit-datetime-edit {
+    color: transparent;
+}
+
+/* ...but show them again while the user is typing */
+.month-input:invalid:focus::-webkit-datetime-edit {
+    color: inherit;
+}
+
+/* Friendly placeholder text while empty and not focused */
+.month-wrap:has(.month-input:invalid)::before {
+    content: "Select month";
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #8a97a8;
+    pointer-events: none;
+}
+
+.month-wrap:focus-within::before {
+    display: none;
+}

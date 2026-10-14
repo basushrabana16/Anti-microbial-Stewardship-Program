@@ -357,290 +357,263 @@
 
 </header>
 
-<!-- ===================================================== -->
-<!-- FILTER CARD -->
-<!-- ===================================================== -->
-
-<section class="report-card">
-
-    <div class="card-header">
-
-        <h2>
-
-            Report Filters
-
-        </h2>
-
-    </div>
-
-
-    <div class="filter-grid">
-
+```html
         <!-- ============================================== -->
-        <!-- DISTRICT -->
+        <!-- FILTER CARD -->
         <!-- ============================================== -->
 
-        <div class="filter-group">
+        <section class="report-card">
 
-            <label>
+            <div class="card-header">
 
-                District
+                <h2>
+                    Report Filters
+                </h2>
 
-                <span
-                    class="filter-info-icon"
-                    title="Filter reports by district">
+            </div>
 
-                    i
+            <div class="filter-grid">
 
-                </span>
+                <!-- FROM (MONTH-YEAR) -->
 
-            </label>
+                <div class="filter-group">
 
-            <div
-                class="multi-select"
-                id="districtFilter">
+                    <label for="fromMonth">
+                        From
+                        <span class="filter-info-icon" title="Include prescriptions from this month onward">i</span>
+                    </label>
 
-                <button
-                    type="button"
-                    class="dropdown-button">
+                    <input
+                        type="month"
+                        id="fromMonth"
+                        class="month-input">
 
-                    All
+                </div>
 
-                </button>
 
-                <div class="dropdown-panel">
+
+                <!-- TO (MONTH-YEAR) -->
+
+                <div class="filter-group">
+
+                    <label for="toMonth">
+                        To
+                        <span class="filter-info-icon" title="Include prescriptions up to and including this month">i</span>
+                    </label>
+
+                    <input
+                        type="month"
+                        id="toMonth"
+                        class="month-input">
+
+                </div>
+
+
+
+                <!-- DISTRICT -->
+
+                <div class="filter-group">
 
                     <label>
-
-                        <input
-                            type="checkbox"
-                            value="all"
-                            checked>
-
-                        All
-
+                        District
+                        <span class="filter-info-icon" title="Filter reports by district">i</span>
                     </label>
+
+                    <div class="multi-select" id="districtFilter">
+
+                        <button
+                            type="button"
+                            class="dropdown-button">
+
+                            All
+
+                        </button>
+
+                        <div class="dropdown-panel">
+
+                            <label>
+
+                                <input
+                                    type="checkbox"
+                                    value="all"
+                                    checked>
+
+                                All
+
+                            </label>
+
+                            <!-- Dynamic values populated by filterManager.js -->
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- BLOCK -->
+
+                <div class="filter-group">
+
+                    <label>
+                        Block
+                        <span class="filter-info-icon" title="Filter reports by block">i</span>
+                    </label>
+
+                    <div class="multi-select" id="blockFilter">
+
+                        <button
+                            type="button"
+                            class="dropdown-button">
+
+                            All
+
+                        </button>
+
+                        <div class="dropdown-panel">
+
+                            <label>
+
+                                <input
+                                    type="checkbox"
+                                    value="all"
+                                    checked>
+
+                                All
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- SAMPLE TYPE -->
+
+                <div class="filter-group">
+
+                    <label>
+                        Sample Type
+                        <span class="filter-info-icon" title="Filter reports by sample type">i</span>
+                    </label>
+
+                    <div class="multi-select" id="sampleTypeFilter">
+
+                        <button
+                            type="button"
+                            class="dropdown-button">
+
+                            All
+
+                        </button>
+
+                        <div class="dropdown-panel">
+
+                            <label>
+
+                                <input
+                                    type="checkbox"
+                                    value="all"
+                                    checked>
+
+                                All
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- ORGANISMS -->
+
+                <div class="filter-group">
+
+                    <label>
+                        Organisms
+                        <span class="filter-info-icon" title="Filter positive cultures by organism">i</span>
+                    </label>
+
+                    <div class="multi-select" id="organismsFilter">
+
+                        <button
+                            type="button"
+                            class="dropdown-button">
+
+                            All
+
+                        </button>
+
+                        <div class="dropdown-panel">
+
+                            <label>
+
+                                <input
+                                    type="checkbox"
+                                    value="all"
+                                    checked>
+
+                                All
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- ANTIBIOTICS -->
+
+                <div class="filter-group">
+
+                    <label>
+                        Antibiotics
+                        <span class="filter-info-icon" title="Select antibiotics to include in the antibiogram">i</span>
+                    </label>
+
+                    <div class="multi-select" id="antibioticsFilter">
+
+                        <button
+                            type="button"
+                            class="dropdown-button">
+
+                            All
+
+                        </button>
+
+                        <div class="dropdown-panel">
+
+                            <label>
+
+                                <input
+                                    type="checkbox"
+                                    value="all"
+                                    checked>
+
+                                All
+
+                            </label>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
             </div>
 
-        </div>
-
-
-
-        <!-- ============================================== -->
-        <!-- BLOCK -->
-        <!-- ============================================== -->
-
-        <div class="filter-group">
-
-            <label>
-
-                Block
-
-                <span
-                    class="filter-info-icon"
-                    title="Filter reports by block">
-
-                    i
-
-                </span>
-
-            </label>
-
-            <div
-                class="multi-select"
-                id="blockFilter">
-
-                <button
-                    type="button"
-                    class="dropdown-button">
-
-                    All
-
-                </button>
-
-                <div class="dropdown-panel">
-
-                    <label>
-
-                        <input
-                            type="checkbox"
-                            value="all"
-                            checked>
-
-                        All
-
-                    </label>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- ============================================== -->
-        <!-- SAMPLE TYPE -->
-        <!-- ============================================== -->
-
-        <div class="filter-group">
-
-            <label>
-
-                Sample Type
-
-                <span
-                    class="filter-info-icon"
-                    title="Filter reports by sample type">
-
-                    i
-
-                </span>
-
-            </label>
-
-            <div
-                class="multi-select"
-                id="sampleTypeFilter">
-
-                <button
-                    type="button"
-                    class="dropdown-button">
-
-                    All
-
-                </button>
-
-                <div class="dropdown-panel">
-
-                    <label>
-
-                        <input
-                            type="checkbox"
-                            value="all"
-                            checked>
-
-                        All
-
-                    </label>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- ============================================== -->
-        <!-- ORGANISMS -->
-        <!-- ============================================== -->
-
-        <div class="filter-group">
-
-            <label>
-
-                Organisms
-
-                <span
-                    class="filter-info-icon"
-                    title="Filter positive cultures by organism">
-
-                    i
-
-                </span>
-
-            </label>
-
-            <div
-                class="multi-select"
-                id="organismsFilter">
-
-                <button
-                    type="button"
-                    class="dropdown-button">
-
-                    All
-
-                </button>
-
-                <div class="dropdown-panel">
-
-                    <label>
-
-                        <input
-                            type="checkbox"
-                            value="all"
-                            checked>
-
-                        All
-
-                    </label>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- ============================================== -->
-        <!-- ANTIBIOTICS -->
-        <!-- ============================================== -->
-
-        <div class="filter-group">
-
-            <label>
-
-                Antibiotics
-
-                <span
-                    class="filter-info-icon"
-                    title="Select antibiotics to include in the antibiogram">
-
-                    i
-
-                </span>
-
-            </label>
-
-            <div
-                class="multi-select"
-                id="antibioticsFilter">
-
-                <button
-                    type="button"
-                    class="dropdown-button">
-
-                    All
-
-                </button>
-
-                <div class="dropdown-panel">
-
-                    <label>
-
-                        <input
-                            type="checkbox"
-                            value="all"
-                            checked>
-
-                        All
-
-                    </label>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
+        </section>
+```
 
 
     <!-- ============================================== -->

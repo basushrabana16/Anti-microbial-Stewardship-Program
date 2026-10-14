@@ -332,10 +332,40 @@ Antibiogram.buildQueryString = function () {
 
     });
 
+        // =================================================
+    // DATE RANGE
+    // =================================================
+
+    const fromMonth =
+        document.getElementById("fromMonth")?.value;
+
+    const toMonth =
+        document.getElementById("toMonth")?.value;
+
+    if (fromMonth) {
+
+        params.append(
+            "from_month",
+            fromMonth
+        );
+
+    }
+
+    if (toMonth) {
+
+        params.append(
+            "to_month",
+            toMonth
+        );
+
+    }
+
 
     return "?" + params.toString();
 
 };
+
+
 
 /* ==========================================================
    RENDER COMPLETE REPORT
