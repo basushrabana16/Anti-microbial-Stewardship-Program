@@ -60,7 +60,10 @@ def run_association_test(
     independent_variable=None,
     dependent_variable=None,
 
-    antibiotics=None
+    antibiotics=None,
+
+    from_month=None,      # <-- NEW
+    to_month=None         # <-- NEW
 
 ):
 
@@ -91,7 +94,9 @@ def run_association_test(
         district=district,
         block=block,
         sample_type=sample_type,
-        organisms=organisms or []
+        organisms=organisms or [],
+        from_month=from_month,      # <-- NEW
+        to_month=to_month           # <-- NEW
 
     )
 

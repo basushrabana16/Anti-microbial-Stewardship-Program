@@ -141,7 +141,9 @@ def get_association_options(
     district="all",
     block="all",
     sample_type="all",
-    organisms=None
+    organisms=None,
+    from_month=None,      # <-- NEW
+    to_month=None         # <-- NEW
 ):
 
     organisms = clean_organism_list(
@@ -152,7 +154,9 @@ def get_association_options(
         district=district,
         block=block,
         sample_type=sample_type,
-        organisms=organisms
+        organisms=organisms,
+        from_month=from_month,     # <-- NEW
+        to_month=to_month          # <-- NEW
     )
 
     options["independent_variables"] = [
