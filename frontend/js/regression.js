@@ -1095,9 +1095,22 @@ Regression.runRegression = async function () {
     const filters =
         typeof FilterManager !== "undefined" && FilterManager.getFilters
             ? FilterManager.getFilters()
-            : { district: "all", block: "all", sample_type: "all", organisms: [] };
+            : {
+                from_month: "",
+                to_month: "",
+                district: "all",
+                block: "all",
+                sample_type: "all",
+                organisms: []
+            };
 
     const payload = {
+
+        /* NEW: time duration (month-year, "YYYY-MM" or "") */
+
+        from_month: filters.from_month || "",
+
+        to_month: filters.to_month || "",
 
         district: filters.district || "all",
 
@@ -1905,7 +1918,14 @@ Regression.updateInfoStrip = function (result) {
         const filters =
             typeof FilterManager !== "undefined" && FilterManager.getFilters
                 ? FilterManager.getFilters()
-                : { district: "all", block: "all", sample_type: "all", organisms: [] };
+                : {
+                    from_month: "",
+                    to_month: "",
+                    district: "all",
+                    block: "all",
+                    sample_type: "all",
+                    organisms: []
+                };
 
         const organismsText =
 
@@ -1918,7 +1938,8 @@ Regression.updateInfoStrip = function (result) {
 
         this.filtersAppliedText.textContent =
 
-            "District: " + (filters.district || "All") +
+            "Period: " + this.formatPeriod(filters) +
+            " | District: " + (filters.district || "All") +
             " | Block: " + (filters.block || "All") +
             " | Sample Type: " + (filters.sample_type || "All") +
             " | Organisms: " + organismsText;
@@ -2222,6 +2243,84 @@ Regression.formatPercent = function (value) {
         return "—";
 
     return (number * 100).toFixed(1) + "%";
+
+};
+
+
+/* ==========================================================
+   FORMAT "YYYY-MM" AS "Jan 2025"   (NEW)
+   ========================================================== */
+
+Regression.formatMonth = function (value) {
+
+    if (!value)
+        return "";
+
+    const parts =
+        String(value).split("-");
+
+    if (parts.length !== 2)
+        return String(value);
+
+    const date =
+        new Date(
+
+            Number(parts[0]),
+
+            Number(parts[1]) - 1,
+
+            1
+
+        );
+
+    return date.toLocaleString(
+
+        "en-GB",
+
+        {
+
+            month: "short",
+
+            year: "numeric"
+
+        }
+
+    );
+
+};
+
+
+/* ==========================================================
+   BUILD PERIOD TEXT   (NEW)
+   ========================================================== */
+
+Regression.formatPeriod = function (filters) {
+
+    if (filters.from_month && filters.to_month) {
+
+        return (
+
+            this.formatMonth(filters.from_month) +
+            " \u2013 " +
+            this.formatMonth(filters.to_month)
+
+        );
+
+    }
+
+    if (filters.from_month) {
+
+        return "From " + this.formatMonth(filters.from_month);
+
+    }
+
+    if (filters.to_month) {
+
+        return "Up to " + this.formatMonth(filters.to_month);
+
+    }
+
+    return "All";
 
 };
 

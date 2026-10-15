@@ -212,8 +212,8 @@ AssociationTests.registerEvents = function () {
     /* ----------------------------------------------
        Reset — clears variable selections and results
        (FilterManager's own listener on this same
-       button independently resets district/block/
-       sample type/organisms/antibiotics)
+       button independently resets the months, district,
+       block, sample type, organisms and antibiotics)
     ---------------------------------------------- */
 
     const resetButton =
@@ -537,6 +537,12 @@ AssociationTests.runTest = async function () {
         FilterManager.getFilters();
 
     const payload = {
+
+        /* NEW: time duration (month-year, "YYYY-MM" or "") */
+
+        from_month: filters.from_month || "",
+
+        to_month: filters.to_month || "",
 
         district: filters.district,
 
@@ -1094,6 +1100,84 @@ AssociationTests.renderInterpretation = function (result) {
 
 
 /* ==========================================================
+   FORMAT "YYYY-MM" AS "Jan 2025"   (NEW)
+   ========================================================== */
+
+AssociationTests.formatMonth = function (value) {
+
+    if (!value)
+        return "";
+
+    const parts =
+        String(value).split("-");
+
+    if (parts.length !== 2)
+        return String(value);
+
+    const date =
+        new Date(
+
+            Number(parts[0]),
+
+            Number(parts[1]) - 1,
+
+            1
+
+        );
+
+    return date.toLocaleString(
+
+        "en-GB",
+
+        {
+
+            month: "short",
+
+            year: "numeric"
+
+        }
+
+    );
+
+};
+
+
+/* ==========================================================
+   BUILD PERIOD TEXT   (NEW)
+   ========================================================== */
+
+AssociationTests.formatPeriod = function (filters) {
+
+    if (filters.from_month && filters.to_month) {
+
+        return (
+
+            this.formatMonth(filters.from_month) +
+            " \u2013 " +
+            this.formatMonth(filters.to_month)
+
+        );
+
+    }
+
+    if (filters.from_month) {
+
+        return "From " + this.formatMonth(filters.from_month);
+
+    }
+
+    if (filters.to_month) {
+
+        return "Up to " + this.formatMonth(filters.to_month);
+
+    }
+
+    return "All";
+
+};
+
+
+/* ==========================================================
    UPDATE INFO STRIP
    ========================================================== */
 
@@ -1115,7 +1199,8 @@ AssociationTests.updateInfoStrip = function (result) {
 
         this.filtersAppliedText.textContent =
 
-            "District: " + (filters.district || "All") +
+            "Period: " + this.formatPeriod(filters) +
+            " | District: " + (filters.district || "All") +
             " | Block: " + (filters.block || "All") +
             " | Sample Type: " + (filters.sample_type || "All") +
             " | Organisms: " + organismsText;
