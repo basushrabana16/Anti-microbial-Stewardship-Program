@@ -1042,7 +1042,9 @@ def get_regression_options(
     district="all",
     block="all",
     sample_type="all",
-    organisms=None
+    organisms=None,
+    from_month=None,      # <-- NEW
+    to_month=None         # <-- NEW
 ):
     """
     Returns regression-related frontend options.
@@ -1138,7 +1140,11 @@ def get_regression_options(
 
             sample_type=sample_type,
 
-            organisms=organisms
+            organisms=organisms,
+
+            from_month=from_month,      # <-- NEW
+
+            to_month=to_month           # <-- NEW
 
         )
 
@@ -1148,6 +1154,7 @@ def get_regression_options(
             # with our core metadata
 
             for key in [
+                "date_range",           # <-- NEW (month picker bounds)
                 "districts",
                 "blocks",
                 "sample_types",
