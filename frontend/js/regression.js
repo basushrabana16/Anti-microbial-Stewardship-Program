@@ -318,6 +318,10 @@ Regression.registerEvents = function () {
                     event.target
                 );
 
+                /* NEW: close the dropdown as soon as a choice is made */
+
+                this.controls.dependent.panel.classList.remove("show");
+
             }
 
         );
@@ -338,6 +342,10 @@ Regression.registerEvents = function () {
                 this.handleAntibioticSelection(
                     event.target
                 );
+
+                /* NEW: close the dropdown as soon as a choice is made */
+
+                this.controls.antibiotic.panel.classList.remove("show");
 
             }
 
@@ -478,6 +486,24 @@ Regression.attachToggle = function (control) {
         (event) => {
 
             event.stopPropagation();
+
+            /* NEW: single-choice dropdowns (dependent variable,
+               antibiotic) close on any option click, even when the
+               option is already selected. The multi-select
+               predictors dropdown stays open. */
+
+            if (
+                control !== this.controls.independent &&
+                event.target.closest("label")
+            ) {
+
+                setTimeout(() => {
+
+                    control.panel.classList.remove("show");
+
+                }, 0);
+
+            }
 
         }
 

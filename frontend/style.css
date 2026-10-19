@@ -1184,3 +1184,45 @@ button, input{
 .month-wrap:focus-within::before {
     display: none;
 }
+
+/* Sidebar: fixed height, stays in place while the page scrolls */
+.sidebar {
+    position: sticky;
+    top: 72px;                    /* set to your navbar's height */
+    height: calc(100vh - 72px);   /* same number as above */
+    align-self: flex-start;       /* stops it stretching to page height */
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-menu   { flex: 1; }          /* menu takes the free space */
+.sidebar-footer { flex-shrink: 0; }   /* Collapse button stays at the bottom of the screen */
+
+/* One shared value for the top navbar's height */
+:root {
+    --navbar-height: 72px;   /* set to your navbar's real height */
+}
+
+/* Top navbar: stays at the top while the page scrolls */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--navbar-height);
+    box-sizing: border-box;
+}
+
+/* Sidebar: fixed height, sits directly under the navbar */
+.sidebar {
+    position: sticky;
+    top: var(--navbar-height);
+    height: calc(100vh - var(--navbar-height));
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-menu   { flex: 1; }
+.sidebar-footer { flex-shrink: 0; }

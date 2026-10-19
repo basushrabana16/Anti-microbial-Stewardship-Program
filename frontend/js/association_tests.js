@@ -308,6 +308,20 @@ AssociationTests.attachVariableEvents = function (control, key) {
 
             event.stopPropagation();
 
+            /* NEW: clicking any option closes the dropdown, even
+               when the option clicked is the one already selected
+               (a "change" event does not fire in that case). */
+
+            if (event.target.closest("label")) {
+
+                setTimeout(() => {
+
+                    control.panel.classList.remove("show");
+
+                }, 0);
+
+            }
+
         }
 
     );
@@ -326,6 +340,10 @@ AssociationTests.attachVariableEvents = function (control, key) {
                 control,
                 event.target
             );
+
+            /* NEW: close the dropdown as soon as a choice is made */
+
+            control.panel.classList.remove("show");
 
         }
 

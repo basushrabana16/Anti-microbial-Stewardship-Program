@@ -99,6 +99,59 @@ FilterManager.controls = {
 
 
 /* ==========================================================
+   MONTH DEFAULTS   (NEW)
+
+   From  -> earliest prescription month in the database
+   To    -> the current month (today)
+
+   The pickers SHOW these defaults, but a value equal to
+   its default is NOT sent to the backend. That way the
+   default view behaves like "All" (no restriction) and
+   rows with a missing prescription_date are not dropped
+   until the user actually narrows the period.
+   ========================================================== */
+
+FilterManager.defaults = {
+
+    from_month: "",
+
+    to_month: ""
+
+};
+
+
+FilterManager.monthsTouched = false;
+
+
+FilterManager.currentMonth = function () {
+
+    const now =
+        new Date();
+
+    return (
+
+        now.getFullYear() +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0")
+
+    );
+
+};
+
+
+FilterManager.effectiveMonth = function (value, defaultValue) {
+
+    if (!value)
+        return "";
+
+    return value === defaultValue
+        ? ""
+        : value;
+
+};
+
+
+/* ==========================================================
    INITIALISE
    ========================================================== */
 
@@ -446,14 +499,26 @@ FilterManager.applyMonthBounds = function (data) {
 
            data.date_range = { min: "YYYY-MM", max: "YYYY-MM" }
 
-       Use them to limit what the pickers allow.
+       min  -> default and lower limit for both pickers
+       today's month -> default and upper limit
     */
 
     const range =
-        data.date_range;
+        data.date_range || {};
 
-    if (!range)
-        return;
+    const today =
+        this.currentMonth();
+
+    const upper =
+        (range.max && range.max > today)
+            ? range.max
+            : today;
+
+    this.defaults.from_month =
+        range.min || "";
+
+    this.defaults.to_month =
+        today;
 
 
     [
@@ -467,10 +532,40 @@ FilterManager.applyMonthBounds = function (data) {
         if (range.min)
             input.min = range.min;
 
-        if (range.max)
-            input.max = range.max;
+        input.max = upper;
 
     });
+
+
+    /*
+       Fill the defaults only until the user has touched
+       the pickers (or pressed Reset, which restores them).
+    */
+
+    if (!this.monthsTouched) {
+
+        if (
+            this.controls.fromMonth &&
+            !this.controls.fromMonth.value &&
+            this.defaults.from_month
+        ) {
+
+            this.controls.fromMonth.value =
+                this.defaults.from_month;
+
+        }
+
+        if (
+            this.controls.toMonth &&
+            !this.controls.toMonth.value
+        ) {
+
+            this.controls.toMonth.value =
+                this.defaults.to_month;
+
+        }
+
+    }
 
 };
 
@@ -877,6 +972,8 @@ FilterManager.attachMonthEvents = function () {
 
     const handler = async event => {
 
+        this.monthsTouched = true;
+
         /*
            Keep From <= To.
         */
@@ -1268,13 +1365,19 @@ FilterManager.updateState = function () {
 
     this.state.from_month =
         this.controls.fromMonth
-            ? this.controls.fromMonth.value
+            ? this.effectiveMonth(
+                this.controls.fromMonth.value,
+                this.defaults.from_month
+            )
             : "";
 
 
     this.state.to_month =
         this.controls.toMonth
-            ? this.controls.toMonth.value
+            ? this.effectiveMonth(
+                this.controls.toMonth.value,
+                this.defaults.to_month
+            )
             : "";
 
 
@@ -1667,14 +1770,17 @@ FilterManager.resetAll = async function () {
 
 
     /*
-       NEW: clear the month pickers on screen too.
+       NEW: put the month pickers back to their defaults
+       (earliest month in the data, current month).
     */
 
+    this.monthsTouched = false;
+
     if (this.controls.fromMonth)
-        this.controls.fromMonth.value = "";
+        this.controls.fromMonth.value = this.defaults.from_month || "";
 
     if (this.controls.toMonth)
-        this.controls.toMonth.value = "";
+        this.controls.toMonth.value = this.defaults.to_month || "";
 
 
     await this.loadOptions();
