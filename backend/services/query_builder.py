@@ -27,6 +27,8 @@ def get_analysis_dataframe(conn):
     query = """
         SELECT *
         FROM prescriptions
+        WHERE cs_sample_send = 'yes'
+          AND status = 'expert_done_final'
     """
 
     prescriptions_df = pd.read_sql(
