@@ -1,37 +1,6 @@
 /* ==========================================================
    FILTER MANAGER
    Shared Cascading Filter Manager
-
-   Cascading hierarchy:
-
-       Time Duration (From Month / To Month)   <-- NEW
-           ↓
-       District
-           ↓
-       Block
-           ↓
-       Sample Type
-           ↓
-       Organism
-           ↓
-       Antibiotic
-
-   ALL filters support:
-
-       All
-       OR
-       Multiple selected values
-
-   The time duration filter uses two month pickers
-   (<input type="month">) and is applied to the
-   prescription_date column on the backend.
-   Values are "YYYY-MM" strings; "" means no limit.
-
-   Used by:
-       - Organism Summary
-       - Antibiogram
-       - Association Tests
-       - Regression
    ========================================================== */
 
 "use strict";
@@ -58,9 +27,9 @@ FilterManager.endpoint =
 
 FilterManager.state = {
 
-    from_month: "",        /* NEW */
+    from_month: "",
 
-    to_month: "",          /* NEW */
+    to_month: "",
 
     district: ["all"],
 
@@ -81,9 +50,9 @@ FilterManager.state = {
 
 FilterManager.controls = {
 
-    fromMonth: null,       /* NEW */
+    fromMonth: null,
 
-    toMonth: null,         /* NEW */
+    toMonth: null,
 
     district: null,
 
@@ -99,16 +68,15 @@ FilterManager.controls = {
 
 
 /* ==========================================================
-   MONTH DEFAULTS   (NEW)
+   REQUEST SEQUENCE COUNTER
+   Guards loadOptions() against stale async responses.
+   ========================================================== */
 
-   From  -> earliest prescription month in the database
-   To    -> the current month (today)
+FilterManager._optionsRequestSeq = 0;
 
-   The pickers SHOW these defaults, but a value equal to
-   its default is NOT sent to the backend. That way the
-   default view behaves like "All" (no restriction) and
-   rows with a missing prescription_date are not dropped
-   until the user actually narrows the period.
+
+/* ==========================================================
+   MONTH DEFAULTS
    ========================================================== */
 
 FilterManager.defaults = {
@@ -172,18 +140,6 @@ FilterManager.initialise = async function () {
 
 FilterManager.cacheControls = function () {
 
-    /*
-       NEW: month-year pickers.
-
-       These are plain <input type="month"> elements:
-
-           <input type="month" id="fromMonth">
-           <input type="month" id="toMonth">
-
-       If a page does not have them, the controls stay
-       null and everything else works as before.
-    */
-
     this.controls.fromMonth =
         document.getElementById("fromMonth");
 
@@ -191,25 +147,6 @@ FilterManager.cacheControls = function () {
     this.controls.toMonth =
         document.getElementById("toMonth");
 
-
-    /*
-       ALL other filters are multi-select.
-
-       District:
-           All OR multiple districts
-
-       Block:
-           All OR multiple blocks
-
-       Sample Type:
-           All OR multiple sample types
-
-       Organisms:
-           All OR multiple organisms
-
-       Antibiotics:
-           All OR multiple antibiotics
-    */
 
     this.controls.district =
         this.buildControl("districtFilter", "multi");
@@ -278,10 +215,10 @@ FilterManager.getFilters = function () {
     return {
 
         from_month:
-            this.state.from_month,          /* NEW */
+            this.state.from_month,
 
         to_month:
-            this.state.to_month,            /* NEW */
+            this.state.to_month,
 
         district:
             [...this.state.district],
@@ -316,9 +253,22 @@ FilterManager.hasAntibioticFilter = function () {
 
 /* ==========================================================
    LOAD FILTER OPTIONS FROM BACKEND
+   ==========================================================
+   Guards against stale async responses using a sequence
+   counter. If a newer loadOptions() has started before an
+   older response arrives, the older response is discarded.
+
+   Without this guard, two overlapping option fetches (e.g.
+   when the user ticks two organisms in quick succession)
+   can overwrite `state.organisms` with an out-of-date
+   response that does not contain the user's latest pick.
    ========================================================== */
 
 FilterManager.loadOptions = async function () {
+
+    const seq =
+        ++this._optionsRequestSeq;
+
 
     const query =
         this.buildQueryString();
@@ -330,30 +280,23 @@ FilterManager.loadOptions = async function () {
         );
 
 
-    if (!data)
+    /* ----------------------------------------------
+       Discard stale response
+    ---------------------------------------------- */
+
+    if (seq !== this._optionsRequestSeq)
         return;
 
 
-    /*
-       Before populating dependent controls,
-       make sure the current state is still valid.
+    if (!data)
+        return;
 
-       This prevents stale selections such as:
-
-           District = Dakshina Kannada
-           Block = block belonging only to Udupi
-    */
 
     this.synchroniseStateWithOptions(data);
 
 
     this.populateFilters(data);
 
-
-    /*
-       Let page-specific modules read fields
-       FilterManager does not itself model.
-    */
 
     document.dispatchEvent(
 
@@ -379,13 +322,6 @@ FilterManager.buildQueryString = function () {
         new URLSearchParams();
 
 
-    /*
-       NEW: Time duration (month-year).
-
-       Only sent when a month is actually chosen.
-       Backend parameter names: from_month, to_month
-    */
-
     if (this.state.from_month) {
 
         params.append(
@@ -406,10 +342,6 @@ FilterManager.buildQueryString = function () {
     }
 
 
-    /*
-       District
-    */
-
     this.state.district.forEach(
         value => {
 
@@ -421,10 +353,6 @@ FilterManager.buildQueryString = function () {
         }
     );
 
-
-    /*
-       Block
-    */
 
     this.state.block.forEach(
         value => {
@@ -438,10 +366,6 @@ FilterManager.buildQueryString = function () {
     );
 
 
-    /*
-       Sample Type
-    */
-
     this.state.sample_type.forEach(
         value => {
 
@@ -453,10 +377,6 @@ FilterManager.buildQueryString = function () {
         }
     );
 
-
-    /*
-       Organisms
-    */
 
     this.state.organisms.forEach(
         value => {
@@ -470,38 +390,16 @@ FilterManager.buildQueryString = function () {
     );
 
 
-    /*
-       Antibiotics are intentionally NOT sent
-       to /antibiogram-options.
-
-       Antibiotics are the final-level options
-       generated by the selected organism(s).
-
-       They will be sent when the actual analysis
-       request is made.
-    */
-
-
     return "?" + params.toString();
 
 };
 
 
 /* ==========================================================
-   APPLY MONTH PICKER BOUNDS   (NEW)
+   APPLY MONTH PICKER BOUNDS
    ========================================================== */
 
 FilterManager.applyMonthBounds = function (data) {
-
-    /*
-       The backend returns the earliest and latest
-       prescription month in the FULL dataset:
-
-           data.date_range = { min: "YYYY-MM", max: "YYYY-MM" }
-
-       min  -> default and lower limit for both pickers
-       today's month -> default and upper limit
-    */
 
     const range =
         data.date_range || {};
@@ -537,11 +435,6 @@ FilterManager.applyMonthBounds = function (data) {
     });
 
 
-    /*
-       Fill the defaults only until the user has touched
-       the pickers (or pressed Reset, which restores them).
-    */
-
     if (!this.monthsTouched) {
 
         if (
@@ -576,7 +469,7 @@ FilterManager.applyMonthBounds = function (data) {
 
 FilterManager.populateFilters = function (data) {
 
-    this.applyMonthBounds(data);          /* NEW */
+    this.applyMonthBounds(data);
 
 
     this.populateControl(
@@ -661,10 +554,6 @@ FilterManager.populateControl = function (
     control.panel.innerHTML = "";
 
 
-    /*
-       Make sure selected is always an array.
-    */
-
     const selectedValues =
         Array.isArray(selected)
             ? selected
@@ -688,10 +577,6 @@ FilterManager.populateControl = function (
         checkbox.value =
             value;
 
-
-        /*
-           "all" is selected when state contains "all".
-        */
 
         checkbox.checked =
             selectedValues.includes(value);
@@ -721,11 +606,6 @@ FilterManager.populateControl = function (
 
     });
 
-
-    /*
-       If there is no valid selection,
-       automatically select All.
-    */
 
     const checked =
         control.panel.querySelectorAll(
@@ -793,10 +673,6 @@ FilterManager.updateButtonLabel = function (
         );
 
 
-    /*
-       Nothing selected / All selected
-    */
-
     if (checked.length === 0) {
 
         control.button.textContent =
@@ -804,22 +680,12 @@ FilterManager.updateButtonLabel = function (
 
     }
 
-
-    /*
-       One value selected
-    */
-
     else if (checked.length === 1) {
 
         control.button.textContent =
             checked[0].value;
 
     }
-
-
-    /*
-       Multiple values selected
-    */
 
     else {
 
@@ -837,7 +703,7 @@ FilterManager.updateButtonLabel = function (
 
 FilterManager.attachEvents = function () {
 
-    this.attachMonthEvents();             /* NEW */
+    this.attachMonthEvents();
 
 
     this.attachToggle(
@@ -889,10 +755,6 @@ FilterManager.attachEvents = function () {
         this.controls.antibiotics
     );
 
-
-    /* --------------------------------------------------
-       Close dropdowns when clicking outside
-    -------------------------------------------------- */
 
     document.addEventListener(
         "click",
@@ -903,10 +765,6 @@ FilterManager.attachEvents = function () {
         }
     );
 
-
-    /* --------------------------------------------------
-       Generate Report
-    -------------------------------------------------- */
 
     const generateButton =
         document.getElementById(
@@ -932,10 +790,6 @@ FilterManager.attachEvents = function () {
 
     }
 
-
-    /* --------------------------------------------------
-       Reset Filters
-    -------------------------------------------------- */
 
     const resetButton =
         document.getElementById(
@@ -965,7 +819,7 @@ FilterManager.attachEvents = function () {
 
 
 /* ==========================================================
-   MONTH PICKER EVENTS   (NEW)
+   MONTH PICKER EVENTS
    ========================================================== */
 
 FilterManager.attachMonthEvents = function () {
@@ -974,37 +828,15 @@ FilterManager.attachMonthEvents = function () {
 
         this.monthsTouched = true;
 
-        /*
-           Keep From <= To.
-        */
-
         this.enforceMonthOrder(
             event.target
         );
 
-
-        /*
-           Save the new months.
-        */
-
         this.updateState();
-
-
-        /*
-           Time is the top-level filter, so changing it
-           resets every dependent filter.
-        */
 
         this.resetDependentFilters(
             "month"
         );
-
-
-        /*
-           Refresh cascading options.
-
-           Report data itself is NOT regenerated.
-        */
 
         await this.loadOptions();
 
@@ -1030,7 +862,7 @@ FilterManager.attachMonthEvents = function () {
 
 
 /* ==========================================================
-   KEEP FROM <= TO   (NEW)
+   KEEP FROM <= TO
    ========================================================== */
 
 FilterManager.enforceMonthOrder = function (
@@ -1050,12 +882,6 @@ FilterManager.enforceMonthOrder = function (
     if (!from.value || !to.value)
         return;
 
-
-    /*
-       "YYYY-MM" strings compare correctly as text.
-       If the range is reversed, move the OTHER picker
-       to match the one the user just changed.
-    */
 
     if (from.value > to.value) {
 
@@ -1118,11 +944,6 @@ FilterManager.attachToggle = function (
 
     );
 
-
-    /*
-       Prevent clicking inside the panel
-       from closing the dropdown.
-    */
 
     control.panel.addEventListener(
 
@@ -1189,11 +1010,6 @@ FilterManager.attachPanelEvents = function (
                 return;
 
 
-            /*
-               ALL filters now use multi-select
-               behaviour.
-            */
-
             this.handleMultiSelection(
                 control,
                 event.target
@@ -1205,39 +1021,13 @@ FilterManager.attachPanelEvents = function (
             );
 
 
-            /*
-               Save the changed filter.
-            */
-
             this.updateState();
 
-
-            /*
-               Reset dependent filters.
-
-               Example:
-
-                   District changes
-                       ↓
-                   Block reset
-                       ↓
-                   Sample Type reset
-                       ↓
-                   Organism reset
-                       ↓
-                   Antibiotic reset
-            */
 
             this.resetDependentFilters(
                 control
             );
 
-
-            /*
-               Refresh cascading options.
-
-               Report data itself is NOT regenerated.
-            */
 
             await this.loadOptions();
 
@@ -1281,10 +1071,6 @@ FilterManager.handleMultiSelection = function (
         return;
 
 
-    /*
-       User selected ALL.
-    */
-
     if (
         checkbox === allBox
         &&
@@ -1306,12 +1092,6 @@ FilterManager.handleMultiSelection = function (
 
     }
 
-
-    /*
-       User selected a specific value.
-       Remove ALL.
-    */
-
     else if (
         checkbox !== allBox
         &&
@@ -1323,12 +1103,6 @@ FilterManager.handleMultiSelection = function (
 
     }
 
-
-    /*
-       User deselected a value.
-       If nothing remains selected,
-       restore ALL.
-    */
 
     const specificSelections =
         checkboxes.filter(
@@ -1358,10 +1132,6 @@ FilterManager.handleMultiSelection = function (
    ========================================================== */
 
 FilterManager.updateState = function () {
-
-    /*
-       NEW: month pickers ("" when empty / not on page)
-    */
 
     this.state.from_month =
         this.controls.fromMonth
@@ -1452,12 +1222,6 @@ FilterManager.resetDependentFilters = function (
     changedControl
 ) {
 
-    /*
-       NEW: Month changed
-       → reset District, Block, Sample Type,
-         Organisms and Antibiotics
-    */
-
     if (changedControl === "month") {
 
         this.state.district =
@@ -1479,12 +1243,6 @@ FilterManager.resetDependentFilters = function (
 
     }
 
-
-    /*
-       District changed
-       → reset Block, Sample Type,
-         Organisms and Antibiotics
-    */
 
     if (
         changedControl ===
@@ -1508,12 +1266,6 @@ FilterManager.resetDependentFilters = function (
     }
 
 
-    /*
-       Block changed
-       → reset Sample Type,
-         Organisms and Antibiotics
-    */
-
     if (
         changedControl ===
         this.controls.block
@@ -1533,11 +1285,6 @@ FilterManager.resetDependentFilters = function (
     }
 
 
-    /*
-       Sample Type changed
-       → reset Organisms and Antibiotics
-    */
-
     if (
         changedControl ===
         this.controls.sampleType
@@ -1553,11 +1300,6 @@ FilterManager.resetDependentFilters = function (
 
     }
 
-
-    /*
-       Organism changed
-       → reset Antibiotics
-    */
 
     if (
         changedControl ===
@@ -1579,20 +1321,12 @@ FilterManager.resetDependentFilters = function (
 FilterManager.synchroniseStateWithOptions =
     function (data) {
 
-        /*
-           District
-        */
-
         this.state.district =
             this.keepValidSelections(
                 this.state.district,
                 data.districts || ["all"]
             );
 
-
-        /*
-           Block
-        */
 
         this.state.block =
             this.keepValidSelections(
@@ -1601,10 +1335,6 @@ FilterManager.synchroniseStateWithOptions =
             );
 
 
-        /*
-           Sample Type
-        */
-
         this.state.sample_type =
             this.keepValidSelections(
                 this.state.sample_type,
@@ -1612,20 +1342,12 @@ FilterManager.synchroniseStateWithOptions =
             );
 
 
-        /*
-           Organisms
-        */
-
         this.state.organisms =
             this.keepValidSelections(
                 this.state.organisms,
                 data.organisms || ["all"]
             );
 
-
-        /*
-           Antibiotics
-        */
 
         this.state.antibiotics =
             this.keepValidSelections(
@@ -1661,11 +1383,6 @@ FilterManager.keepValidSelections =
             );
 
 
-        /*
-           If ALL is available and the current
-           selection is ALL, keep ALL.
-        */
-
         if (
             selectedValues.some(
                 value =>
@@ -1679,11 +1396,6 @@ FilterManager.keepValidSelections =
         }
 
 
-        /*
-           Keep only values that still exist
-           in the new cascading options.
-        */
-
         const valid =
             selectedValues.filter(
                 value =>
@@ -1692,11 +1404,6 @@ FilterManager.keepValidSelections =
                     )
             );
 
-
-        /*
-           Nothing valid remains.
-           Return ALL.
-        */
 
         if (valid.length === 0) {
 
@@ -1716,13 +1423,22 @@ FilterManager.keepValidSelections =
 
 FilterManager.notifyChange = function () {
 
+    const filters =
+        this.getFilters();
+
+
+    console.log(
+        "[FilterManager] notifyChange:",
+        filters
+    );
+
+
     document.dispatchEvent(
 
         new CustomEvent(
             "filtersChanged",
             {
-                detail:
-                    this.getFilters()
+                detail: filters
             }
         )
 
@@ -1752,9 +1468,9 @@ FilterManager.resetAll = async function () {
 
     this.state = {
 
-        from_month: "",          /* NEW */
+        from_month: "",
 
-        to_month: "",            /* NEW */
+        to_month: "",
 
         district: ["all"],
 
@@ -1768,11 +1484,6 @@ FilterManager.resetAll = async function () {
 
     };
 
-
-    /*
-       NEW: put the month pickers back to their defaults
-       (earliest month in the data, current month).
-    */
 
     this.monthsTouched = false;
 

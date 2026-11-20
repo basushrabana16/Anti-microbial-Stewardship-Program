@@ -1212,17 +1212,3 @@ button, input{
     height: var(--navbar-height);
     box-sizing: border-box;
 }
-
-/* Sidebar: fixed height, sits directly under the navbar */
-.sidebar {
-    position: sticky;
-    top: var(--navbar-height);
-    height: calc(100vh - var(--navbar-height));
-    align-self: flex-start;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-}
-
-.sidebar-menu   { flex: 1; }
-.sidebar-footer { flex-shrink: 0; }

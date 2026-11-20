@@ -1,49 +1,8 @@
 # =====================================================
 # REGRESSION HELPERS
 # =====================================================
-#
-# Common utility functions used by:
-#
-#     regression_data.py
-#     binary_logistic.py
-#     multinomial_logistic.py
-#     ordinal_logistic.py
-#     regression_diagnostics.py
-#
-# This module is responsible for:
-#
-#     - categorical normalization
-#     - regression dataframe preparation
-#     - complete-case cleaning
-#     - outcome validation
-#     - outcome distributions
-#     - category ordering
-#     - design-matrix construction
-#     - reference-category identification
-#     - predictor-level identification
-#     - VIF calculation
-#     - zero-variance detection
-#     - rare-category detection
-#
-# This module DOES NOT:
-#
-#     - select the regression model
-#     - filter positive cultures
-#     - select antibiotics
-#     - fit a regression model
-#     - calculate regression coefficients
-#     - perform model diagnostics
-#
-# Model selection is handled by:
-#
-#     regression_data.py
-#
-# using:
-#
-#     regression_metadata.py
-#
-# =====================================================
 
+import re
 
 import numpy as np
 import pandas as pd
@@ -53,6 +12,99 @@ from statsmodels.api import add_constant
 from statsmodels.stats.outliers_influence import (
     variance_inflation_factor
 )
+
+
+# =====================================================
+# NUMERIC-AWARE CATEGORY SORTING
+# =====================================================
+#
+# Alphabetical sorting breaks numeric range labels:
+#
+#     sorted(["5-15", "16-25", "26-100"])
+#         -> ["16-25", "26-100", "5-15"]
+#
+# That reverses the reference category for custom age
+# bins like 5-15 / 16-25 / 26-100.
+#
+# _sort_categories() sorts numeric-looking labels by
+# their numeric bounds while preserving alphabetical
+# order for everything else.
+# =====================================================
+
+_RANGE_RE = re.compile(r"^(\d+)\s*-\s*(\d+)$")
+_LESS_THAN_RE = re.compile(r"^<\s*(\d+)$")
+_GREATER_THAN_RE = re.compile(r"^>\s*(\d+)$")
+
+
+def _numeric_aware_sort_key(category):
+    """
+    Sort key for a single category label.
+
+    Numeric range labels sort by (min, max).
+    <N labels sort as (0, N-1).
+    >N labels sort as (N+1, +inf).
+    Everything else sorts after numeric labels,
+    alphabetically.
+    """
+
+    text = str(category).strip().lower()
+
+
+    match = _RANGE_RE.match(text)
+
+    if match:
+
+        return (
+            0,
+            int(match.group(1)),
+            int(match.group(2)),
+            text
+        )
+
+
+    match = _LESS_THAN_RE.match(text)
+
+    if match:
+
+        n = int(match.group(1))
+
+        return (
+            0,
+            0,
+            max(n - 1, 0),
+            text
+        )
+
+
+    match = _GREATER_THAN_RE.match(text)
+
+    if match:
+
+        n = int(match.group(1))
+
+        return (
+            0,
+            n + 1,
+            float("inf"),
+            text
+        )
+
+
+    return (1, 0, 0, text)
+
+
+def _sort_categories(categories):
+    """
+    Sorts categories with numeric awareness.
+
+    Backward compatible with sorted() for non-numeric
+    labels.
+    """
+
+    return sorted(
+        categories,
+        key=_numeric_aware_sort_key
+    )
 
 
 # =====================================================
@@ -225,13 +277,6 @@ def prepare_regression_dataframe(df):
     # =================================================
     # NORMALIZE COMMON CATEGORICAL COLUMNS
     # =================================================
-    #
-    # Includes derived columns from association_metadata.py:
-    #   - age_group (derived from age_years)
-    #   - collection_month (derived from collection_date)
-    #   - collection_season (derived from collection_month)
-    #
-    # =================================================
 
     categorical_columns = [
 
@@ -248,7 +293,6 @@ def prepare_regression_dataframe(df):
 
         "antibiogram_susceptibility",
 
-        # Derived columns from association_metadata.py
         "collection_month",
         "collection_season"
 
@@ -429,33 +473,13 @@ def clean_regression_dataframe(
     Selects and cleans the variables required for the
     requested regression.
 
-    Operations:
-
-        1. Validate requested variables
-        2. Select required columns
-        3. Normalize predictors
-        4. Normalize outcome
-        5. Remove incomplete observations
-        6. Store sample-size information in attrs
-
     Returns
     -------
     pandas.DataFrame or None
         Returns a DataFrame if successful.
-        Returns None if no rows remain after complete-case analysis.
-        Diagnostic information is stored in the original df's attrs.
-
-    NOTE
-    ----
-    This function does NOT:
-
-        - filter positive cultures
-        - select an antibiotic
-        - select a regression model
-        - remove rare categories
-        - combine categories
-
-    Those decisions belong to the data/model layers.
+        Returns None if no rows remain after complete-case
+        analysis. Diagnostic information is stored in the
+        original df's attrs.
     """
 
     if df is None or df.empty:
@@ -478,10 +502,6 @@ def clean_regression_dataframe(
         return None
 
 
-    # =================================================
-    # VALIDATE DEPENDENT VARIABLE
-    # =================================================
-
     dependent_validation = (
         validate_dependent_variable(
 
@@ -497,10 +517,6 @@ def clean_regression_dataframe(
 
         return None
 
-
-    # =================================================
-    # VALIDATE PREDICTORS
-    # =================================================
 
     predictor_validation = (
         validate_predictors(
@@ -518,10 +534,6 @@ def clean_regression_dataframe(
         return None
 
 
-    # =================================================
-    # REQUIRED COLUMNS
-    # =================================================
-
     required_columns = (
 
         independent_variables
@@ -531,8 +543,6 @@ def clean_regression_dataframe(
     )
 
 
-    # Remove duplicates while preserving order
-
     required_columns = list(
         dict.fromkeys(
             required_columns
@@ -540,18 +550,10 @@ def clean_regression_dataframe(
     )
 
 
-    # =================================================
-    # SELECT REQUIRED DATA
-    # =================================================
-
     working_df = df[
         required_columns
     ].copy()
 
-
-    # =================================================
-    # NORMALIZE PREDICTORS
-    # =================================================
 
     for column in independent_variables:
 
@@ -566,10 +568,6 @@ def clean_regression_dataframe(
         )
 
 
-    # =================================================
-    # NORMALIZE DEPENDENT VARIABLE
-    # =================================================
-
     working_df[dependent_variable] = (
 
         normalize_categorical_series(
@@ -581,23 +579,10 @@ def clean_regression_dataframe(
     )
 
 
-    # =================================================
-    # SAMPLE SIZE BEFORE COMPLETE-CASE ANALYSIS
-    # =================================================
-
     initial_n = len(
         working_df
     )
 
-
-    # =================================================
-    # CHECK FOR MISSING DATA BEFORE DROPPING
-    # =================================================
-    #
-    # This provides detailed diagnostic information
-    # for debugging when no rows remain.
-    #
-    # =================================================
 
     missing_counts = {}
 
@@ -609,10 +594,6 @@ def clean_regression_dataframe(
 
             missing_counts[column] = int(missing_count)
 
-
-    # =================================================
-    # COMPLETE-CASE ANALYSIS
-    # =================================================
 
     working_df = working_df.dropna(
 
@@ -635,26 +616,7 @@ def clean_regression_dataframe(
     )
 
 
-    # =================================================
-    # HANDLE EMPTY DATAFRAME
-    # =================================================
-    #
-    # If no rows remain, store diagnostic information
-    # in the original dataframe's attrs and return None.
-    #
-    # The caller can access:
-    #
-    #     df.attrs.get("_clean_error")
-    #     df.attrs.get("_clean_missing_counts")
-    #     df.attrs.get("_clean_initial_n")
-    #     df.attrs.get("_clean_excluded_n")
-    #
-    # =================================================
-
     if working_df.empty:
-
-        # Store diagnostic information on the original df
-        # so the caller can access it.
 
         missing_summary = []
 
@@ -704,41 +666,25 @@ def clean_regression_dataframe(
         return None
 
 
-    # =================================================
-    # RESET INDEX
-    # =================================================
-
     working_df = working_df.reset_index(
         drop=True
     )
 
 
-    # =================================================
-    # STORE SAMPLE INFORMATION
-    # =================================================
-
     working_df.attrs[
         "initial_n"
-    ] = int(
-        initial_n
-    )
+    ] = int(initial_n)
 
 
     working_df.attrs[
         "excluded_n"
-    ] = int(
-        excluded_n
-    )
+    ] = int(excluded_n)
 
 
     working_df.attrs[
         "final_n"
-    ] = int(
-        final_n
-    )
+    ] = int(final_n)
 
-
-    # Store missing information for debugging
 
     if missing_counts:
 
@@ -761,7 +707,8 @@ def get_outcome_categories(
     """
     Returns observed non-missing outcome categories.
 
-    Categories are returned in sorted order.
+    Categories are returned in numeric-aware sorted
+    order (numeric ranges first, then alphabetical).
 
     For ordinal outcomes, use
     get_ordered_outcome_categories() instead.
@@ -796,13 +743,12 @@ def get_outcome_categories(
         for category in categories
 
         if category is not None
-
         and str(category).strip() != ""
 
     ]
 
 
-    return sorted(
+    return _sort_categories(
         categories
     )
 
@@ -1015,12 +961,6 @@ def validate_binary_outcome(
 
     If expected_categories is supplied, all observed
     categories must belong to that set.
-
-    This allows regression_data.py to enforce the
-    metadata-defined categories:
-
-        negative
-        positive
     """
 
     if (
@@ -1141,9 +1081,6 @@ def validate_multinomial_outcome(
     Requirement:
 
         At least 3 observed categories.
-
-    A two-category outcome should be handled by binary
-    logistic regression instead.
     """
 
     if (
@@ -1224,13 +1161,6 @@ def validate_ordinal_outcome(
     At least 2 observed ordered categories are required.
 
     Missing intermediate categories are allowed.
-
-    Example:
-
-        resistant
-        susceptible
-
-    remains a valid two-level ordered outcome.
     """
 
     if (
@@ -1369,9 +1299,6 @@ def validate_ordinal_outcome(
 # =====================================================
 # BUILD DESIGN MATRIX
 # =====================================================
-# =====================================================
-# BUILD DESIGN MATRIX
-# =====================================================
 
 def build_design_matrix(
     df,
@@ -1385,14 +1312,15 @@ def build_design_matrix(
     For each predictor:
 
         - observed categories are identified
-        - categories are sorted
+        - categories are sorted with numeric awareness
         - first category becomes the reference
         - remaining categories become dummy variables
 
     An intercept is added.
 
-    If the design matrix is singular (perfect multicollinearity),
-    redundant columns are removed automatically.
+    If the design matrix is singular (perfect
+    multicollinearity), redundant columns are removed
+    automatically.
 
     Returns
     -------
@@ -1466,23 +1394,15 @@ def build_design_matrix(
         )
 
 
-        categories = sorted(
+        categories = _sort_categories(
             categories
         )
 
-
-        # ---------------------------------------------
-        # No usable categories
-        # ---------------------------------------------
 
         if not categories:
 
             continue
 
-
-        # ---------------------------------------------
-        # Reference category
-        # ---------------------------------------------
 
         reference_category = categories[0]
 
@@ -1493,7 +1413,7 @@ def build_design_matrix(
 
 
         # ---------------------------------------------
-        # Convert to categorical
+        # Dummy encoding
         # ---------------------------------------------
 
         categorical_series = pd.Categorical(
@@ -1506,10 +1426,6 @@ def build_design_matrix(
 
         )
 
-
-        # ---------------------------------------------
-        # Dummy encoding
-        # ---------------------------------------------
 
         dummies = pd.get_dummies(
 
@@ -1524,14 +1440,8 @@ def build_design_matrix(
         )
 
 
-        # Preserve original dataframe index
-
         dummies.index = df.index
 
-
-        # ---------------------------------------------
-        # Add only if dummy columns exist
-        # ---------------------------------------------
 
         if not dummies.empty:
 
@@ -1561,10 +1471,6 @@ def build_design_matrix(
         )
 
 
-    # =================================================
-    # ENSURE NUMERIC MATRIX
-    # =================================================
-
     if not X.empty:
 
         X = X.astype(float)
@@ -1582,71 +1488,69 @@ def build_design_matrix(
 
     )
 
+
     # =================================================
     # HANDLE SINGULAR MATRIX
-    # =================================================
     #
-    # If the design matrix is singular, remove columns
-    # one by one until it becomes full rank.
+    # If the design matrix is singular (perfect
+    # multicollinearity, e.g. district + block with
+    # aligned categories), drop one redundant column
+    # at a time until the matrix becomes full rank.
     #
-    # This typically happens when there is perfect
-    # multicollinearity (e.g., district + block).
+    # Zero-variance columns are removed first (bulk
+    # removal is faster than one-by-one).
     #
+    # Silence on success: callers get a usable matrix
+    # without console noise. If the matrix cannot be
+    # repaired, it is returned as-is and downstream
+    # rank checks will produce a user-facing error.
     # =================================================
 
-    # Try to get a full rank matrix
     try:
 
-        # Check if matrix is singular
-        rank = np.linalg.matrix_rank(X.values)
-        cols = X.shape[1]
+        zero_var_cols = find_zero_variance_columns(X)
 
-        if rank < cols:
+        if zero_var_cols:
 
-            print(f"WARNING: Design matrix is singular (rank={rank}, columns={cols})")
-            print(f"Removing redundant columns to achieve full rank...")
+            X = X.drop(columns=zero_var_cols)
 
-            # Remove columns with zero variance first
-            zero_var_cols = find_zero_variance_columns(X)
-            if zero_var_cols:
-                X = X.drop(columns=zero_var_cols)
-                print(f"Removed zero-variance columns: {zero_var_cols}")
 
-            # If still singular, use QR decomposition to find rank-deficient columns
+        while X.shape[1] > 0:
+
             rank = np.linalg.matrix_rank(X.values)
-            cols = X.shape[1]
 
-            if rank < cols:
-                # Use QR decomposition to identify redundant columns
-                # This is a simple approach: check each column's contribution
-                columns_to_drop = []
-                for i, col in enumerate(X.columns):
-                    if col == "const":
-                        continue
-                    # Test if column can be expressed as linear combination of others
-                    temp_X = X.drop(columns=[col]).values
-                    temp_rank = np.linalg.matrix_rank(temp_X)
-                    full_rank = np.linalg.matrix_rank(X.drop(columns=[col]).values)
-                    # If dropping the column doesn't change the rank, it's redundant
-                    # Actually, we need a simpler approach
+            if rank >= X.shape[1]:
 
-                # Simpler approach: remove columns one by one until full rank
-                temp_X = X.copy()
-                cols_to_remove = []
-                for col in X.columns:
-                    if col == "const":
-                        continue
-                    temp_rank = np.linalg.matrix_rank(temp_X.drop(columns=[col]).values)
-                    if temp_rank == np.linalg.matrix_rank(temp_X.values):
-                        cols_to_remove.append(col)
-                        temp_X = temp_X.drop(columns=[col])
+                break
 
-                if cols_to_remove:
-                    X = X.drop(columns=cols_to_remove)
-                    print(f"Removed redundant columns: {cols_to_remove}")
 
-    except Exception as e:
-        print(f"Warning: Could not automatically fix singular matrix: {e}")
+            removed = False
+
+            for col in list(X.columns):
+
+                if col == "const":
+
+                    continue
+
+                temp = X.drop(columns=[col])
+
+                if np.linalg.matrix_rank(temp.values) == rank:
+
+                    X = temp
+
+                    removed = True
+
+                    break
+
+
+            if not removed:
+
+                break
+
+    except Exception:
+
+        pass
+
 
     return (
 
@@ -1655,6 +1559,7 @@ def build_design_matrix(
         reference_categories
 
     )
+
 
 # =====================================================
 # GET PREDICTOR LEVELS
@@ -1701,7 +1606,7 @@ def get_predictor_levels(
         )
 
 
-        levels[column] = sorted(
+        levels[column] = _sort_categories(
             categories
         )
 
@@ -1739,9 +1644,7 @@ def find_zero_variance_columns(X):
         try:
 
             n_unique = X[column].nunique(
-
                 dropna=False
-
             )
 
         except Exception:
@@ -1786,11 +1689,9 @@ def remove_zero_variance_columns(X):
 
 
     zero_variance = (
-
         find_zero_variance_columns(
             X
         )
-
     )
 
 
@@ -1830,9 +1731,6 @@ def calculate_vif(X):
     Calculates variance inflation factors.
 
     The intercept is excluded.
-
-    VIF is calculated on the dummy-coded predictor
-    matrix.
 
     Columns that have zero variance or cannot produce
     a finite VIF receive None.
@@ -1881,10 +1779,6 @@ def calculate_vif(X):
     ]
 
 
-    # -------------------------------------------------
-    # Fewer than two varying predictors
-    # -------------------------------------------------
-
     if len(variable_columns) < 2:
 
         return [
@@ -1908,10 +1802,6 @@ def calculate_vif(X):
         variable_columns
     ].copy()
 
-
-    # -------------------------------------------------
-    # Ensure numeric values
-    # -------------------------------------------------
 
     try:
 
@@ -1992,10 +1882,6 @@ def calculate_vif(X):
         })
 
 
-    # -------------------------------------------------
-    # Add zero-variance columns
-    # -------------------------------------------------
-
     for column in predictor_columns:
 
         if column in zero_variance_columns:
@@ -2010,10 +1896,6 @@ def calculate_vif(X):
 
             })
 
-
-    # -------------------------------------------------
-    # Preserve original predictor order
-    # -------------------------------------------------
 
     vif_lookup = {
 
@@ -2058,8 +1940,6 @@ def find_rare_categories(
     minimum_count observations.
 
     Rare categories are reported only.
-
-    They are NOT automatically removed or combined.
     """
 
     if df is None or df.empty:
@@ -2132,8 +2012,8 @@ def get_reference_categories(
     Returns the reference category for each categorical
     predictor.
 
-    The first observed category in sorted order is
-    used as the reference category.
+    The first observed category in numeric-aware sorted
+    order is used as the reference category.
 
     This uses the same rule as build_design_matrix().
     """

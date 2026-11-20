@@ -33,7 +33,22 @@ const AssociationTests = {
 
     },
 
-    lastResult: null
+    lastResult: null,
+
+    perAntibioticContainer: null,
+
+    /* ---------------------------------------------
+       Custom age groups (only used when the
+       independent variable is "age_group").
+    --------------------------------------------- */
+
+    customAgeGroups: null,
+
+    ageGroupRows: [],
+
+    AGE_GROUPS_MIN: 2,
+
+    AGE_GROUPS_MAX: 5
 
 };
 
@@ -95,17 +110,36 @@ AssociationTests.cacheElements = function () {
     this.antibioticGroup =
         document.getElementById("antibioticGroup");
 
+    /* ---------------------------------------------
+       Custom age-group UI elements
+    --------------------------------------------- */
+
+    this.customizeBtn =
+        document.getElementById("customizeAgeGroupsBtn");
+
+    this.agePanel =
+        document.getElementById("customAgeGroupsPanel");
+
+    this.ageRowsContainer =
+        document.getElementById("ageGroupsRows");
+
+    this.ageError =
+        document.getElementById("customAgeGroupsError");
+
+    this.addAgeGroupBtn =
+        document.getElementById("addAgeGroupBtn");
+
+    this.resetAgeGroupsBtn =
+        document.getElementById("resetAgeGroupsBtn");
+
+    this.applyAgeGroupsBtn =
+        document.getElementById("applyAgeGroupsBtn");
+
 };
 
 
 /* ==========================================================
    CACHE INDEPENDENT / DEPENDENT VARIABLE CONTROLS
-
-   These are single-choice radio-button dropdowns, visually
-   similar to district/block/sample type, but they are not
-   part of FilterManager's fixed control set (their option
-   lists come from a different part of the /association-options
-   payload and have no "All" choice).
    ========================================================== */
 
 AssociationTests.cacheVariableControls = function () {
@@ -168,6 +202,12 @@ AssociationTests.registerEvents = function () {
     );
 
     /* ----------------------------------------------
+       Custom age-group UI
+    ---------------------------------------------- */
+
+    this.attachAgeGroupEvents();
+
+    /* ----------------------------------------------
        Populate variable dropdowns whenever
        FilterManager loads /association-options
     ---------------------------------------------- */
@@ -211,9 +251,6 @@ AssociationTests.registerEvents = function () {
 
     /* ----------------------------------------------
        Reset — clears variable selections and results
-       (FilterManager's own listener on this same
-       button independently resets the months, district,
-       block, sample type, organisms and antibiotics)
     ---------------------------------------------- */
 
     const resetButton =
@@ -269,9 +306,7 @@ AssociationTests.registerEvents = function () {
 
 
 /* ==========================================================
-   DROPDOWN OPEN / CLOSE (reuses FilterManager's
-   closeAllPanels so outside-click and other dropdowns
-   behave consistently across the page)
+   DROPDOWN OPEN / CLOSE
    ========================================================== */
 
 AssociationTests.attachVariableEvents = function (control, key) {
@@ -308,10 +343,6 @@ AssociationTests.attachVariableEvents = function (control, key) {
 
             event.stopPropagation();
 
-            /* NEW: clicking any option closes the dropdown, even
-               when the option clicked is the one already selected
-               (a "change" event does not fire in that case). */
-
             if (event.target.closest("label")) {
 
                 setTimeout(() => {
@@ -340,8 +371,6 @@ AssociationTests.attachVariableEvents = function (control, key) {
                 control,
                 event.target
             );
-
-            /* NEW: close the dropdown as soon as a choice is made */
 
             control.panel.classList.remove("show");
 
@@ -396,10 +425,6 @@ AssociationTests.populateVariableControl = function (control, values, key) {
 
         radio.type = "radio";
 
-        /* Grouping by name is what makes the browser itself
-           enforce "only one selected" — selecting a new option
-           automatically deselects the previous one. */
-
         radio.name = key + "VariableChoice";
 
         radio.value = value;
@@ -429,8 +454,7 @@ AssociationTests.populateVariableControl = function (control, values, key) {
 
 
 /* ==========================================================
-   SINGLE-CHOICE BEHAVIOUR FOR VARIABLE DROPDOWNS
-   (radio buttons — exactly one selected, no "All" option)
+   SINGLE-CHOICE BEHAVIOUR
    ========================================================== */
 
 AssociationTests.handleVariableSelection = function (key, control, radio) {
@@ -442,6 +466,10 @@ AssociationTests.handleVariableSelection = function (key, control, radio) {
 
     if (key === "dependent") {
         this.updateAntibioticVisibility();
+    }
+
+    if (key === "independent") {
+        this.updateAgeGroupUI();
     }
 
 };
@@ -463,10 +491,6 @@ AssociationTests.updateVariableButtonLabel = function (control, key) {
 
 /* ==========================================================
    SHOW / HIDE ANTIBIOTIC FILTER
-
-   The backend only ever tests one antibiotic at a time
-   (the first non-"all" value sent), and only when the
-   dependent variable is "antibiogram_susceptibility".
    ========================================================== */
 
 AssociationTests.updateAntibioticVisibility = function () {
@@ -523,7 +547,13 @@ AssociationTests.resetVariables = function () {
 
     }
 
+    this.customAgeGroups = null;
+
+    this.ageGroupRows = [];
+
     this.updateAntibioticVisibility();
+
+    this.updateAgeGroupUI();
 
     this.resetResults();
 
@@ -555,8 +585,6 @@ AssociationTests.runTest = async function () {
         FilterManager.getFilters();
 
     const payload = {
-
-        /* NEW: time duration (month-year, "YYYY-MM" or "") */
 
         from_month: filters.from_month || "",
 
@@ -594,7 +622,7 @@ AssociationTests.runTest = async function () {
             if (typeof showMessage === "function") {
 
                 showMessage(
-                    "Please select an antibiotic.",
+                    "Please select at least one antibiotic.",
                     "error"
                 );
 
@@ -605,6 +633,18 @@ AssociationTests.runTest = async function () {
         }
 
         payload.antibiotics = chosenAntibiotics;
+
+    }
+
+    if (
+        this.selected.independent === "age_group"
+        &&
+        this.customAgeGroups
+        &&
+        this.customAgeGroups.length > 0
+    ) {
+
+        payload.age_groups = this.customAgeGroups;
 
     }
 
@@ -640,6 +680,22 @@ AssociationTests.render = function (result) {
 
     this.updateInfoStrip(result);
 
+    if (
+        result.antibiogram_mode === "multi"
+        &&
+        result.antibiotics
+    ) {
+
+        this.renderPerAntibioticResults(result);
+
+    }
+
+    else {
+
+        this.clearPerAntibioticResults();
+
+    }
+
 };
 
 
@@ -663,14 +719,10 @@ AssociationTests.formatPValue = function (value) {
 
 
 /* ==========================================================
-   RENDER CONTINGENCY TABLE
-   (dynamic column header row + body + total row)
+   POPULATE TABLE ROWS (SHARED)
    ========================================================== */
 
-AssociationTests.renderTable = function (result) {
-
-    if (!this.tableHead || !this.tableBody)
-        return;
+AssociationTests.populateTableRows = function (result, thead, tbody) {
 
     const rowKeys =
         Object.keys(result.row_totals || {});
@@ -678,13 +730,7 @@ AssociationTests.renderTable = function (result) {
     const columnKeys =
         Object.keys(result.column_totals || {});
 
-    /* ---------------------------------------------
-       Single header row:
-       Variable | ...dependent categories... | Total |
-       Test | Statistic | df | p-value
-    --------------------------------------------- */
-
-    this.tableHead.innerHTML = "";
+    thead.innerHTML = "";
 
     const headerRow =
         document.createElement("tr");
@@ -717,13 +763,9 @@ AssociationTests.renderTable = function (result) {
 
     headerRow.appendChild(this.createHeaderCell("p-value"));
 
-    this.tableHead.appendChild(headerRow);
+    thead.appendChild(headerRow);
 
-    /* ---------------------------------------------
-       Body rows
-    --------------------------------------------- */
-
-    this.tableBody.innerHTML = "";
+    tbody.innerHTML = "";
 
     if (rowKeys.length === 0 || columnKeys.length === 0) {
 
@@ -743,7 +785,7 @@ AssociationTests.renderTable = function (result) {
 
         emptyRow.appendChild(emptyCell);
 
-        this.tableBody.appendChild(emptyRow);
+        tbody.appendChild(emptyRow);
 
         return;
 
@@ -791,15 +833,6 @@ AssociationTests.renderTable = function (result) {
             )
 
         );
-
-        /* -----------------------------------------
-           Test / Statistic / df / p-value are
-           properties of the whole table, not any
-           one category — write them once, on the
-           first category row, spanning down over
-           every category row via rowspan. They do
-           NOT extend into the Total row below.
-        ----------------------------------------- */
 
         if (index === 0) {
 
@@ -856,16 +889,9 @@ AssociationTests.renderTable = function (result) {
 
         }
 
-        this.tableBody.appendChild(row);
+        tbody.appendChild(row);
 
     });
-
-    /* ---------------------------------------------
-       Total row — no Test/Statistic/df/p-value
-       cells; those columns stay blank here since
-       the rowspan above only covers the category
-       rows.
-    --------------------------------------------- */
 
     const totalRow =
         document.createElement("tr");
@@ -910,7 +936,53 @@ AssociationTests.renderTable = function (result) {
 
     totalRow.appendChild(grandTotalCell);
 
-    this.tableBody.appendChild(totalRow);
+    tbody.appendChild(totalRow);
+
+};
+
+
+/* ==========================================================
+   RENDER CONTINGENCY TABLE (CUMULATIVE)
+   ========================================================== */
+
+AssociationTests.renderTable = function (result) {
+
+    if (!this.tableHead || !this.tableBody)
+        return;
+
+    this.populateTableRows(
+        result,
+        this.tableHead,
+        this.tableBody
+    );
+
+};
+
+
+/* ==========================================================
+   BUILD A STANDALONE CONTINGENCY TABLE ELEMENT
+   ========================================================== */
+
+AssociationTests.buildTableDOM = function (result) {
+
+    const table =
+        document.createElement("table");
+
+    table.className = "summary-table";
+
+    const thead =
+        document.createElement("thead");
+
+    const tbody =
+        document.createElement("tbody");
+
+    table.appendChild(thead);
+
+    table.appendChild(tbody);
+
+    this.populateTableRows(result, thead, tbody);
+
+    return table;
 
 };
 
@@ -982,7 +1054,7 @@ AssociationTests.formatCell = function (count, percentage) {
 
 
 /* ==========================================================
-   ASSUMPTION CHECKS
+   ASSUMPTION CHECKS (CUMULATIVE)
    ========================================================== */
 
 AssociationTests.renderAssumptions = function (result) {
@@ -1037,13 +1109,98 @@ AssociationTests.renderAssumptions = function (result) {
 
 
 /* ==========================================================
-   STATISTICAL INTERPRETATION
+   BUILD A STANDALONE ASSUMPTIONS STRIP ELEMENT
    ========================================================== */
 
-AssociationTests.renderInterpretation = function (result) {
+AssociationTests.buildAssumptionsDOM = function (result) {
 
-    if (!this.interpretationBox)
-        return;
+    const assumptions =
+        result.assumptions || {};
+
+    const section =
+        document.createElement("section");
+
+    section.className = "info-strip";
+
+    const items = [
+
+        {
+            label: "Minimum Expected Frequency",
+            value:
+                (assumptions.minimum_expected_frequency === null ||
+                 assumptions.minimum_expected_frequency === undefined)
+                    ? "—"
+                    : assumptions.minimum_expected_frequency
+        },
+
+        {
+            label: "Cells with Expected < 5",
+            value:
+                (assumptions.cells_with_expected_below_5 === null ||
+                 assumptions.cells_with_expected_below_5 === undefined)
+                    ? "—"
+                    : assumptions.cells_with_expected_below_5
+        },
+
+        {
+            label: "% Cells with Expected < 5",
+            value:
+                (assumptions.percent_cells_with_expected_below_5 === null ||
+                 assumptions.percent_cells_with_expected_below_5 === undefined)
+                    ? "—"
+                    : assumptions.percent_cells_with_expected_below_5 + "%"
+        },
+
+        {
+            label: "Recommended Test",
+            value:
+                result.test || "—"
+        }
+
+    ];
+
+    items.forEach(item => {
+
+        const stat =
+            document.createElement("div");
+
+        stat.className = "info-strip-stat";
+
+        const label =
+            document.createElement("div");
+
+        label.className = "info-strip-label";
+
+        label.textContent = item.label;
+
+        const value =
+            document.createElement("div");
+
+        value.className = "info-strip-value";
+
+        value.textContent = item.value;
+
+        stat.appendChild(label);
+
+        stat.appendChild(value);
+
+        section.appendChild(stat);
+
+    });
+
+    return section;
+
+};
+
+
+/* ==========================================================
+   BUILD INTERPRETATION TEXT (SHARED)
+   ========================================================== */
+
+AssociationTests.buildInterpretationText = function (
+    result,
+    selectedAntibiotic
+) {
 
     const independentLabel =
         this.formatLabel(result.independent_variable);
@@ -1051,12 +1208,15 @@ AssociationTests.renderInterpretation = function (result) {
     let dependentLabel =
         this.formatLabel(result.dependent_variable);
 
-    if (result.selected_antibiotic) {
+    const antibiotic =
+        selectedAntibiotic || result.selected_antibiotic;
+
+    if (antibiotic) {
 
         dependentLabel +=
 
             " (" +
-            this.formatLabel(result.selected_antibiotic) +
+            this.formatLabel(antibiotic) +
             ")";
 
     }
@@ -1108,17 +1268,262 @@ AssociationTests.renderInterpretation = function (result) {
 
     }
 
-    this.interpretationBox.textContent =
-        parts.join(" ");
+    return {
 
-    this.interpretationBox.className =
-        "message " + (result.warning ? "info" : "info");
+        text: parts.join(" "),
+
+        className: "message info"
+
+    };
 
 };
 
 
 /* ==========================================================
-   FORMAT "YYYY-MM" AS "Jan 2025"   (NEW)
+   STATISTICAL INTERPRETATION (CUMULATIVE)
+   ========================================================== */
+
+AssociationTests.renderInterpretation = function (result) {
+
+    if (!this.interpretationBox)
+        return;
+
+    const built =
+        this.buildInterpretationText(result);
+
+    this.interpretationBox.textContent =
+        built.text;
+
+    this.interpretationBox.className =
+        built.className;
+
+};
+
+
+/* ==========================================================
+   PER-ANTIBIOTIC RESULTS CONTAINER
+   ========================================================== */
+
+AssociationTests.ensurePerAntibioticContainer = function () {
+
+    if (this.perAntibioticContainer)
+        return this.perAntibioticContainer;
+
+    let container =
+        document.getElementById("perAntibioticResults");
+
+    if (!container) {
+
+        container =
+            document.createElement("div");
+
+        container.id = "perAntibioticResults";
+
+        let anchor = null;
+
+        if (this.interpretationBox) {
+
+            anchor =
+                this.interpretationBox.closest(".report-card")
+                || this.interpretationBox.parentElement;
+
+        }
+
+        if (anchor && anchor.parentElement) {
+
+            anchor.parentElement.insertBefore(
+                container,
+                anchor.nextSibling
+            );
+
+        }
+
+        else {
+
+            const contentArea =
+                document.querySelector(".content-area")
+                || document.body;
+
+            contentArea.appendChild(container);
+
+        }
+
+    }
+
+    this.perAntibioticContainer = container;
+
+    return container;
+
+};
+
+
+AssociationTests.clearPerAntibioticResults = function () {
+
+    const container =
+        this.ensurePerAntibioticContainer();
+
+    if (container) {
+
+        container.innerHTML = "";
+
+    }
+
+};
+
+
+/* ==========================================================
+   RENDER PER-ANTIBIOTIC RESULTS
+   ========================================================== */
+
+AssociationTests.renderPerAntibioticResults = function (result) {
+
+    const container =
+        this.ensurePerAntibioticContainer();
+
+    if (!container)
+        return;
+
+    container.innerHTML = "";
+
+    if (result.pooled_warning) {
+
+        const warning =
+            document.createElement("div");
+
+        warning.className = "message info";
+
+        warning.style.marginBottom = "16px";
+
+        warning.textContent = result.pooled_warning;
+
+        container.appendChild(warning);
+
+    }
+
+    const antibioticEntries =
+        Object.entries(result.antibiotics || {});
+
+    if (antibioticEntries.length === 0) {
+
+        return;
+
+    }
+
+    const header =
+        document.createElement("header");
+
+    header.className = "topbar";
+
+    header.style.marginBottom = "12px";
+
+    const heading =
+        document.createElement("h2");
+
+    heading.textContent =
+        "Per-Antibiotic Results";
+
+    const subtitle =
+        document.createElement("p");
+
+    subtitle.textContent =
+        "Individual association tests for each selected antibiotic";
+
+    header.appendChild(heading);
+
+    header.appendChild(subtitle);
+
+    container.appendChild(header);
+
+    antibioticEntries.forEach(([antibiotic, entry]) => {
+
+        const card =
+            document.createElement("section");
+
+        card.className = "report-card";
+
+        const cardHeader =
+            document.createElement("div");
+
+        cardHeader.className = "card-header";
+
+        const cardTitle =
+            document.createElement("h3");
+
+        cardTitle.textContent =
+            this.formatLabel(antibiotic);
+
+        cardHeader.appendChild(cardTitle);
+
+        card.appendChild(cardHeader);
+
+        if (entry.error) {
+
+            const errorBox =
+                document.createElement("div");
+
+            errorBox.className = "message error";
+
+            errorBox.textContent = entry.error;
+
+            card.appendChild(errorBox);
+
+            container.appendChild(card);
+
+            return;
+
+        }
+
+        const mergedEntry = {
+
+            ...entry,
+
+            independent_variable: result.independent_variable,
+
+            dependent_variable: result.dependent_variable
+
+        };
+
+        const tableWrapper =
+            document.createElement("div");
+
+        tableWrapper.className = "table-container";
+
+        tableWrapper.appendChild(
+            this.buildTableDOM(mergedEntry)
+        );
+
+        card.appendChild(tableWrapper);
+
+        card.appendChild(
+            this.buildAssumptionsDOM(mergedEntry)
+        );
+
+        const interpretation =
+            this.buildInterpretationText(
+                mergedEntry,
+                antibiotic
+            );
+
+        const interpretationDiv =
+            document.createElement("div");
+
+        interpretationDiv.className =
+            interpretation.className;
+
+        interpretationDiv.textContent =
+            interpretation.text;
+
+        card.appendChild(interpretationDiv);
+
+        container.appendChild(card);
+
+    });
+
+};
+
+
+/* ==========================================================
+   FORMAT "YYYY-MM" AS "Jan 2025"
    ========================================================== */
 
 AssociationTests.formatMonth = function (value) {
@@ -1161,7 +1566,7 @@ AssociationTests.formatMonth = function (value) {
 
 
 /* ==========================================================
-   BUILD PERIOD TEXT   (NEW)
+   BUILD PERIOD TEXT
    ========================================================== */
 
 AssociationTests.formatPeriod = function (filters) {
@@ -1313,12 +1718,13 @@ AssociationTests.resetResults = function () {
         this.reportGeneratedValue.textContent = "—";
     }
 
+    this.clearPerAntibioticResults();
+
 };
 
 
 /* ==========================================================
    FORMAT VARIABLE / CATEGORY LABEL
-   e.g. "age_group" -> "Age Group", "no growth" -> "No Growth"
    ========================================================== */
 
 AssociationTests.formatLabel = function (value) {
@@ -1331,6 +1737,430 @@ AssociationTests.formatLabel = function (value) {
         .replace(/_/g, " ")
 
         .replace(/\b\w/g, character => character.toUpperCase());
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — EVENT WIRING
+   ========================================================== */
+
+AssociationTests.attachAgeGroupEvents = function () {
+
+    if (this.customizeBtn) {
+
+        this.customizeBtn.addEventListener("click", () => {
+
+            if (!this.agePanel)
+                return;
+
+            if (this.agePanel.style.display === "none") {
+                this.openAgeGroupPanel();
+            }
+
+            else {
+                this.closeAgeGroupPanel();
+            }
+
+        });
+
+    }
+
+    if (this.addAgeGroupBtn) {
+
+        this.addAgeGroupBtn.addEventListener("click", () => {
+
+            if (this.ageGroupRows.length >= this.AGE_GROUPS_MAX)
+                return;
+
+            const last =
+                this.ageGroupRows[this.ageGroupRows.length - 1];
+
+            const nextMin =
+                (last ? last.max : 0) + 1;
+
+            this.ageGroupRows.push({
+                min: nextMin,
+                max: nextMin + 30
+            });
+
+            this.renderAgeGroupRows();
+
+        });
+
+    }
+
+    if (this.resetAgeGroupsBtn) {
+
+        this.resetAgeGroupsBtn.addEventListener(
+            "click",
+            () => this.handleResetAgeGroups()
+        );
+
+    }
+
+    if (this.applyAgeGroupsBtn) {
+
+        this.applyAgeGroupsBtn.addEventListener(
+            "click",
+            () => this.handleApplyAgeGroups()
+        );
+
+    }
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — DEFAULT ROWS
+   Matches the backend's default bins (<30 / 30-60 / >60).
+   ========================================================== */
+
+AssociationTests.defaultAgeGroupRows = function () {
+
+    return [
+        { min: 0,  max: 29  },
+        { min: 30, max: 60  },
+        { min: 61, max: 150 }
+    ];
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — BUTTON VISIBILITY
+   ========================================================== */
+
+AssociationTests.updateAgeGroupUI = function () {
+
+    const needsCustomization =
+        this.selected.independent === "age_group";
+
+    if (this.customizeBtn) {
+
+        this.customizeBtn.style.display =
+            needsCustomization ? "" : "none";
+
+    }
+
+    if (!needsCustomization && this.agePanel) {
+
+        this.agePanel.style.display = "none";
+
+    }
+
+    this.updateCustomizeButtonLabel();
+
+};
+
+
+AssociationTests.updateCustomizeButtonLabel = function () {
+
+    if (!this.customizeBtn)
+        return;
+
+    if (
+        this.customAgeGroups
+        &&
+        this.customAgeGroups.length > 0
+    ) {
+
+        this.customizeBtn.textContent =
+            `Age Groups: Custom (${this.customAgeGroups.length}) — Edit`;
+
+    }
+
+    else {
+
+        this.customizeBtn.textContent =
+            "Customize Age Groups";
+
+    }
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — PANEL OPEN / CLOSE
+   ========================================================== */
+
+AssociationTests.openAgeGroupPanel = function () {
+
+    if (!this.agePanel)
+        return;
+
+    this.ageGroupRows =
+        this.customAgeGroups
+            ? this.customAgeGroups.map(
+                group => ({ min: group.min, max: group.max })
+              )
+            : this.defaultAgeGroupRows();
+
+    this.renderAgeGroupRows();
+
+    this.clearAgeGroupError();
+
+    this.agePanel.style.display = "";
+
+};
+
+
+AssociationTests.closeAgeGroupPanel = function () {
+
+    if (this.agePanel)
+        this.agePanel.style.display = "none";
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — RENDER ROWS
+   ========================================================== */
+
+AssociationTests.renderAgeGroupRows = function () {
+
+    if (!this.ageRowsContainer)
+        return;
+
+    this.ageRowsContainer.innerHTML = "";
+
+    this.ageGroupRows.forEach((row, index) => {
+
+        const rowEl =
+            document.createElement("div");
+
+        rowEl.style.display = "flex";
+        rowEl.style.alignItems = "center";
+        rowEl.style.gap = "8px";
+        rowEl.style.marginBottom = "8px";
+
+        const label =
+            document.createElement("span");
+
+        label.textContent = `Group ${index + 1}`;
+        label.style.minWidth = "70px";
+        label.style.fontWeight = "500";
+
+        rowEl.appendChild(label);
+
+        const minInput =
+            document.createElement("input");
+
+        minInput.type = "number";
+        minInput.min = "0";
+        minInput.step = "1";
+        minInput.value = row.min;
+        minInput.placeholder = "Min";
+        minInput.className = "month-input";
+        minInput.style.maxWidth = "100px";
+
+        minInput.addEventListener("input", () => {
+
+            const parsed = parseInt(minInput.value, 10);
+
+            this.ageGroupRows[index].min =
+                Number.isFinite(parsed) ? parsed : 0;
+
+        });
+
+        rowEl.appendChild(minInput);
+
+        const sep =
+            document.createElement("span");
+
+        sep.textContent = "to";
+
+        rowEl.appendChild(sep);
+
+        const maxInput =
+            document.createElement("input");
+
+        maxInput.type = "number";
+        maxInput.min = "1";
+        maxInput.step = "1";
+        maxInput.value = row.max;
+        maxInput.placeholder = "Max";
+        maxInput.className = "month-input";
+        maxInput.style.maxWidth = "100px";
+
+        maxInput.addEventListener("input", () => {
+
+            const parsed = parseInt(maxInput.value, 10);
+
+            this.ageGroupRows[index].max =
+                Number.isFinite(parsed) ? parsed : 0;
+
+        });
+
+        rowEl.appendChild(maxInput);
+
+        const removeBtn =
+            document.createElement("button");
+
+        removeBtn.type = "button";
+        removeBtn.className = "secondary-button";
+        removeBtn.textContent = "×";
+        removeBtn.style.padding = "4px 10px";
+        removeBtn.disabled =
+            this.ageGroupRows.length <= this.AGE_GROUPS_MIN;
+
+        removeBtn.addEventListener("click", () => {
+
+            this.ageGroupRows.splice(index, 1);
+
+            this.renderAgeGroupRows();
+
+        });
+
+        rowEl.appendChild(removeBtn);
+
+        this.ageRowsContainer.appendChild(rowEl);
+
+    });
+
+    if (this.addAgeGroupBtn) {
+
+        this.addAgeGroupBtn.disabled =
+            this.ageGroupRows.length >= this.AGE_GROUPS_MAX;
+
+    }
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — ERROR DISPLAY
+   ========================================================== */
+
+AssociationTests.showAgeGroupError = function (message) {
+
+    if (!this.ageError)
+        return;
+
+    this.ageError.textContent = message;
+
+    this.ageError.style.display = "";
+
+};
+
+
+AssociationTests.clearAgeGroupError = function () {
+
+    if (!this.ageError)
+        return;
+
+    this.ageError.textContent = "";
+
+    this.ageError.style.display = "none";
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — VALIDATION
+   ========================================================== */
+
+AssociationTests.validateAgeGroupRows = function () {
+
+    if (this.ageGroupRows.length < this.AGE_GROUPS_MIN) {
+
+        return (
+            `At least ${this.AGE_GROUPS_MIN} age groups are required.`
+        );
+
+    }
+
+    if (this.ageGroupRows.length > this.AGE_GROUPS_MAX) {
+
+        return (
+            `At most ${this.AGE_GROUPS_MAX} age groups are allowed.`
+        );
+
+    }
+
+    for (let i = 0; i < this.ageGroupRows.length; i++) {
+
+        const { min, max } = this.ageGroupRows[i];
+
+        if (min < 0) {
+
+            return (
+                `Group ${i + 1}: minimum cannot be negative.`
+            );
+
+        }
+
+        if (min >= max) {
+
+            return (
+                `Group ${i + 1}: minimum must be less than maximum.`
+            );
+
+        }
+
+    }
+
+    for (let i = 0; i < this.ageGroupRows.length - 1; i++) {
+
+        if (this.ageGroupRows[i].max + 1 !== this.ageGroupRows[i + 1].min) {
+
+            return (
+                `Group ${i + 1} ends at ${this.ageGroupRows[i].max}, ` +
+                `but Group ${i + 2} starts at ${this.ageGroupRows[i + 1].min}. ` +
+                `Groups must be contiguous (no gaps, no overlaps).`
+            );
+
+        }
+
+    }
+
+    return null;
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — APPLY / RESET
+   ========================================================== */
+
+AssociationTests.handleApplyAgeGroups = function () {
+
+    this.clearAgeGroupError();
+
+    const error =
+        this.validateAgeGroupRows();
+
+    if (error) {
+
+        this.showAgeGroupError(error);
+
+        return;
+
+    }
+
+    this.customAgeGroups =
+        this.ageGroupRows.map(
+            group => ({ min: group.min, max: group.max })
+        );
+
+    this.updateCustomizeButtonLabel();
+
+    this.closeAgeGroupPanel();
+
+};
+
+
+AssociationTests.handleResetAgeGroups = function () {
+
+    this.customAgeGroups = null;
+
+    this.ageGroupRows = [];
+
+    this.updateCustomizeButtonLabel();
+
+    this.clearAgeGroupError();
+
+    this.closeAgeGroupPanel();
 
 };
 

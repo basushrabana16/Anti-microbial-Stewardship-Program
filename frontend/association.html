@@ -84,7 +84,6 @@
             </p>
 
         </div>
-
     </div>
 
 
@@ -142,9 +141,7 @@
             Administrator
 
         </div>
-
     </div>
-
 </header>
 
 
@@ -180,7 +177,6 @@
                 Dashboard
 
             </span>
-
         </a>
 
 
@@ -208,7 +204,6 @@
                 Antibiogram
 
             </span>
-
         </a>
 
 
@@ -230,7 +225,6 @@
                 Organism Summary
 
             </span>
-
         </a>
 
 
@@ -260,7 +254,6 @@
                 Association Tests
 
             </span>
-
         </a>
 
 
@@ -284,9 +277,7 @@
                 Regression
 
             </span>
-
         </a>
-
     </nav>
 
 
@@ -317,11 +308,8 @@
                 Collapse
 
             </span>
-
         </button>
-
     </div>
-
 </aside>
 
 
@@ -360,9 +348,7 @@
             Statistical association analysis between categorical variables with automatic test selection and publication-ready reporting.
 
         </p>
-
     </div>
-
 </header>
 
 <!-- ===================================================== -->
@@ -378,7 +364,6 @@
             Report Filters
 
         </h2>
-
     </div>
 
 
@@ -388,10 +373,6 @@
     <!-- ================================================= -->
 
     <div class="filter-grid">
-
-        <!-- ============================================== -->
-        <!-- FROM (MONTH-YEAR)   NEW -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -406,7 +387,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div class="month-wrap">
@@ -416,16 +396,10 @@
                     id="fromMonth"
                     class="month-input"
                     required>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- TO (MONTH-YEAR)   NEW -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -440,7 +414,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div class="month-wrap">
@@ -450,16 +423,10 @@
                     id="toMonth"
                     class="month-input"
                     required>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- DISTRICT -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -474,7 +441,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -505,16 +471,10 @@
                     <!-- Dynamic values -->
 
                 </div>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- BLOCK -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -529,7 +489,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -556,18 +515,11 @@
                         All
 
                     </label>
-
                 </div>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- SAMPLE TYPE -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -582,7 +534,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -609,18 +560,11 @@
                         All
 
                     </label>
-
                 </div>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- ORGANISMS -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -635,7 +579,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -662,13 +605,9 @@
                         All
 
                     </label>
-
                 </div>
-
             </div>
-
         </div>
-
     </div>
 
 
@@ -678,10 +617,6 @@
     <!-- ================================================= -->
 
     <div class="association-second-row">
-
-        <!-- ============================================== -->
-        <!-- INDEPENDENT VARIABLE -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -696,7 +631,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -716,16 +650,26 @@
                     <!-- Populated by JavaScript -->
 
                 </div>
-
             </div>
+
+            <!-- ========================================== -->
+            <!-- CUSTOMIZE AGE GROUPS — visible only when   -->
+            <!-- independent variable = age_group           -->
+            <!-- ========================================== -->
+
+            <button
+                type="button"
+                id="customizeAgeGroupsBtn"
+                class="secondary-button"
+                style="display:none; margin-top:8px; font-size:12px; padding:6px 10px;">
+
+                Customize Age Groups
+
+            </button>
 
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- DEPENDENT VARIABLE -->
-        <!-- ============================================== -->
 
         <div class="filter-group">
 
@@ -740,7 +684,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -760,16 +703,10 @@
                     <!-- Populated by JavaScript -->
 
                 </div>
-
             </div>
-
         </div>
 
 
-
-        <!-- ============================================== -->
-        <!-- ANTIBIOTIC (shown only when required) -->
-        <!-- ============================================== -->
 
         <div
             class="filter-group"
@@ -787,7 +724,6 @@
                     i
 
                 </span>
-
             </label>
 
             <div
@@ -807,11 +743,8 @@
                     <!-- Populated by JavaScript -->
 
                 </div>
-
             </div>
-
         </div>
-
     </div>
 
 
@@ -869,10 +802,90 @@
             Reset
 
         </button>
+    </div>
+</section>
+
+
+
+<!-- ===================================================== -->
+<!-- CUSTOM AGE GROUPS PANEL -->
+<!-- Visible only when the user clicks                    -->
+<!-- "Customize Age Groups" while the independent        -->
+<!-- variable is age_group.                               -->
+<!-- ===================================================== -->
+
+<section
+    id="customAgeGroupsPanel"
+    class="report-card"
+    style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Custom Age Groups
+
+            </h2>
+
+            <p>
+
+                Define between 2 and 5 contiguous, non-overlapping
+                age groups. Each group’s minimum must be exactly one
+                year greater than the previous group’s maximum.
+
+            </p>
+        </div>
+    </div>
+
+    <div
+        id="customAgeGroupsError"
+        class="message error"
+        style="display:none; margin-bottom:12px;">
 
     </div>
 
+    <div
+        id="ageGroupsRows"
+        style="margin-bottom:16px;">
+
+        <!-- Rows rendered by association_tests.js -->
+
+    </div>
+
+    <div class="button-row">
+
+        <button
+            type="button"
+            id="addAgeGroupBtn"
+            class="secondary-button">
+
+            + Add Age Group
+
+        </button>
+
+        <button
+            type="button"
+            id="resetAgeGroupsBtn"
+            class="secondary-button">
+
+            Use Default Groups
+
+        </button>
+
+        <button
+            type="button"
+            id="applyAgeGroupsBtn"
+            class="primary-button">
+
+            Apply Custom Groups
+
+        </button>
+    </div>
 </section>
+
+
 
 <!-- ===================================================== -->
 <!-- FILTER SUMMARY STRIP -->
@@ -881,10 +894,6 @@
 <section
     class="info-strip"
     id="filtersAppliedStrip">
-
-    <!-- ============================================== -->
-    <!-- FILTERS APPLIED -->
-    <!-- ============================================== -->
 
     <div class="info-strip-block">
 
@@ -910,7 +919,6 @@
                 <path d="M12 8h.01"/>
 
             </svg>
-
         </div>
 
         <div>
@@ -932,16 +940,10 @@
                 Organisms: All
 
             </div>
-
         </div>
-
     </div>
 
 
-
-    <!-- ============================================== -->
-    <!-- TEST USED -->
-    <!-- ============================================== -->
 
     <div class="info-strip-stat">
 
@@ -958,14 +960,9 @@
             Auto
 
         </div>
-
     </div>
 
 
-
-    <!-- ============================================== -->
-    <!-- TOTAL RECORDS -->
-    <!-- ============================================== -->
 
     <div class="info-strip-stat">
 
@@ -982,14 +979,9 @@
             —
 
         </div>
-
     </div>
 
 
-
-    <!-- ============================================== -->
-    <!-- REPORT GENERATED -->
-    <!-- ============================================== -->
 
     <div class="info-strip-stat">
 
@@ -1006,9 +998,7 @@
             —
 
         </div>
-
     </div>
-
 </section>
 
 <!-- ===================================================== -->
@@ -1032,36 +1022,7 @@
                 Cross-tabulation with row percentages and statistical test results.
 
             </p>
-
         </div>
-
-        <button
-            type="button"
-            class="export-button"
-            id="exportAssociation">
-
-            <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-
-                <path d="M7 10l5 5 5-5"/>
-
-                <path d="M12 15V3"/>
-
-            </svg>
-
-            Export Table
-
-        </button>
-
     </div>
 
 
@@ -1074,17 +1035,12 @@
 
             <thead id="associationTableHead">
 
-                <!-- ================================================= -->
-                <!-- Fully dynamic single header row, built by
-                     association_tests.js:
+                <!--
+                    Fully dynamic single header row, built by
+                    association_tests.js.
 
-                     Variable | ...dependent categories... | Total |
-                     Test | Statistic | df | p-value
-
-                     Example
-                     ------------------------------------------------
-                     Variable | No Growth | Positive | Total |
-                     Test | Statistic | df | p-value
+                    Variable | ...dependent categories... | Total |
+                    Test | Statistic | df | p-value
                 -->
 
             </thead>
@@ -1093,29 +1049,11 @@
 
             <tbody id="associationTableBody">
 
-                <!--
-
-                JavaScript will generate rows similar to:
-
-                ------------------------------------------------------------
-
-                Female  274 (37.53%)  456 (62.47%)  730  Chi-square  2.8635  2  0.2389
-                Male    209 (33.17%)  421 (66.83%)  630
-                Other   231 (36.09%)  409 (63.91%)  640
-                Total   714 (35.70%)  1,286 (64.30%)  2,000
-
-                The Test/Statistic/df/p-value cells are only written on the
-                first category row, using rowspan to cover every category
-                row (Female/Male/Other above) but NOT the Total row.
-
-                -->
+                <!-- Populated by association_tests.js -->
 
             </tbody>
-
         </table>
-
     </div>
-
 </section>
 
 
@@ -1140,9 +1078,7 @@
                 Assessment of expected cell frequencies and automatic statistical test selection.
 
             </p>
-
         </div>
-
     </div>
 
 
@@ -1216,13 +1152,9 @@
                     </td>
 
                 </tr>
-
             </tbody>
-
         </table>
-
     </div>
-
 </section>
 
 
@@ -1248,9 +1180,7 @@
                 Automatically generated interpretation of the association test.
 
             </p>
-
         </div>
-
     </div>
 
 
@@ -1262,8 +1192,17 @@
         Run an association analysis to generate the statistical interpretation.
 
     </div>
-
 </section>
+
+
+
+<!-- ===================================================== -->
+<!-- PER-ANTIBIOTIC RESULTS (multi-antibiotic only) -->
+<!-- Populated by association_tests.js when the backend -->
+<!-- returns antibiogram_mode === "multi". -->
+<!-- ===================================================== -->
+
+<div id="perAntibioticResults"></div>
 
 
 
@@ -1282,9 +1221,7 @@
                 Report Notes
 
             </h2>
-
         </div>
-
     </div>
 
     <ul class="report-notes">
@@ -1324,8 +1261,26 @@
 
         </li>
 
-    </ul>
+        <li>
 
+            When two or more antibiotics are selected for
+            <strong>Antibiogram Susceptibility</strong>, the top table pools
+            results across all selected antibiotics (descriptive), while a
+            separate table, assumption check and interpretation is shown for
+            each individual antibiotic (statistical inference).
+
+        </li>
+
+        <li>
+
+            When <strong>Age Group</strong> is selected as the independent
+            variable, custom age ranges (2 to 5 contiguous groups) can be
+            defined. If no customization is applied, the default bins
+            (&lt;30, 30-60, &gt;60) are used.
+
+        </li>
+
+    </ul>
 </section>
 
 
@@ -1342,7 +1297,6 @@
         &copy; 2026
 
     </p>
-
 </footer>
 
 </main>

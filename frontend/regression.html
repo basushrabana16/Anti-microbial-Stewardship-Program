@@ -404,7 +404,7 @@
     <div class="filter-grid">
 
         <!-- ============================================== -->
-        <!-- FROM (MONTH-YEAR)   NEW -->
+        <!-- FROM (MONTH-YEAR) -->
         <!-- ============================================== -->
 
         <div class="filter-group">
@@ -438,7 +438,7 @@
 
 
         <!-- ============================================== -->
-        <!-- TO (MONTH-YEAR)   NEW -->
+        <!-- TO (MONTH-YEAR) -->
         <!-- ============================================== -->
 
         <div class="filter-group">
@@ -733,6 +733,22 @@
 
             </div>
 
+            <!-- ========================================== -->
+            <!-- CUSTOMIZE AGE GROUPS — visible only when   -->
+            <!-- "age_group" is among the selected          -->
+            <!-- independent variables                      -->
+            <!-- ========================================== -->
+
+            <button
+                type="button"
+                id="customizeAgeGroupsBtn"
+                class="secondary-button"
+                style="display:none; margin-top:8px; font-size:12px; padding:6px 10px;">
+
+                Customize Age Groups
+
+            </button>
+
         </div>
 
 
@@ -782,18 +798,18 @@
 
 
         <!-- ============================================== -->
-        <!-- ANTIBIOTIC (conditional) -->
+        <!-- ANTIBIOTICS (conditional, multi-select) -->
         <!-- ============================================== -->
 
         <div class="filter-group" id="antibioticGroup" style="display:none;">
 
             <label>
 
-                Antibiotic
+                Antibiotics
 
                 <span
                     class="filter-info-icon"
-                    title="Select an antibiotic for antibiogram regression">
+                    title="Select one or more antibiotics for antibiogram regression">
 
                     i
 
@@ -809,7 +825,7 @@
                     type="button"
                     class="dropdown-button">
 
-                    Select Antibiotic
+                    Select Antibiotics
 
                 </button>
 
@@ -884,6 +900,97 @@
     </div>
 
 </section>
+
+
+
+<!-- ===================================================== -->
+<!-- CUSTOM AGE GROUPS PANEL -->
+<!-- Visible only when the user clicks                    -->
+<!-- "Customize Age Groups" while age_group is among the  -->
+<!-- selected independent variables.                       -->
+<!-- ===================================================== -->
+
+<section
+    id="customAgeGroupsPanel"
+    class="report-card"
+    style="display:none;">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+
+                Custom Age Groups
+
+            </h2>
+
+            <p>
+
+                Define between 2 and 5 contiguous, non-overlapping
+                age groups. Each group’s minimum must be exactly one
+                year greater than the previous group’s maximum.
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div
+        id="customAgeGroupsError"
+        class="message error"
+        style="display:none; margin-bottom:12px;">
+
+    </div>
+
+    <div
+        id="ageGroupsRows"
+        style="margin-bottom:16px;">
+
+        <!-- Rows rendered by regression.js -->
+
+    </div>
+
+    <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
+
+        Define between 2 and 5 age groups. Groups must not overlap.
+
+    </div>
+
+    <div class="button-row">
+
+        <button
+            type="button"
+            id="addAgeGroupBtn"
+            class="secondary-button">
+
+            + Add Age Group
+
+        </button>
+
+        <button
+            type="button"
+            id="resetAgeGroupsBtn"
+            class="secondary-button">
+
+            Use Default Groups
+
+        </button>
+
+        <button
+            type="button"
+            id="applyAgeGroupsBtn"
+            class="primary-button">
+
+            Apply Custom Groups
+
+        </button>
+    </div>
+</section>
+
+
+
 <!-- ===================================================== -->
 <!-- FILTER SUMMARY STRIP -->
 <!-- ===================================================== -->
@@ -1044,33 +1151,6 @@
 
         </div>
 
-        <button
-            type="button"
-            class="export-button"
-            id="exportRegression">
-
-            <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-
-                <path d="M7 10l5 5 5-5"/>
-
-                <path d="M12 15V3"/>
-
-            </svg>
-
-            Export Table
-
-        </button>
-
     </div>
 
 
@@ -1145,10 +1225,10 @@
 
 
 <!-- ===================================================== -->
-<!-- OUTCOME DISTRIBUTION -->
+<!-- OUTCOME DISTRIBUTION (hidden) -->
 <!-- ===================================================== -->
 
-<section class="report-card" id="outcomeDistributionSection">
+<section class="report-card" id="outcomeDistributionSection" style="display:none;">
 
     <div class="card-header">
 
@@ -1835,6 +1915,18 @@
 
 
 <!-- ===================================================== -->
+<!-- PER-ANTIBIOTIC REGRESSION RESULTS -->
+<!-- Populated by regression.js when the backend returns -->
+<!-- antibiogram_mode === "multi". Each selected antibiotic -->
+<!-- gets its own card containing coefficients, model fit, -->
+<!-- diagnostics, VIF, proportional odds and interpretation. -->
+<!-- ===================================================== -->
+
+<div id="perAntibioticRegressionResults"></div>
+
+
+
+<!-- ===================================================== -->
 <!-- REPORT NOTES -->
 <!-- ===================================================== -->
 
@@ -1907,6 +1999,25 @@
         <li>
 
             Classification metrics are provided for binary and multinomial models where applicable.
+
+        </li>
+
+        <li>
+
+            When <strong>Age Group</strong> is selected as an independent
+            variable, custom age ranges (2 to 5 contiguous groups) can be
+            defined. If no customization is applied, the default bins
+            (&lt;30, 30-60, &gt;60) are used.
+
+        </li>
+
+        <li>
+
+            When <strong>Antibiogram Susceptibility</strong> is selected as
+            the dependent variable, one or more antibiotics may be selected.
+            Each selected antibiotic produces its own ordinal logistic
+            regression table, model diagnostics, VIF and statistical
+            interpretation. No pooled model is produced.
 
         </li>
 

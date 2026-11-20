@@ -134,6 +134,103 @@ def clean_organism_list(organisms):
 
 
 # =====================================================
+# CUSTOM AGE GROUPS
+# =====================================================
+
+def apply_custom_age_groups(df, age_groups):
+    """
+    Replaces the default age_group column with user-defined bins.
+
+    age_groups: list of {"min": int, "max": int} dicts, or None.
+
+    Validation rules (B1 — reject gaps and overlaps):
+        - at least 2 and at most 5 groups
+        - every group: 0 <= min < max
+        - every pair of consecutive groups must be contiguous:
+              group[i].max + 1 == group[i+1].min
+
+    Returns (df, error_message). error_message is None on success.
+    """
+
+    if not age_groups:
+        return df, None
+
+    if not isinstance(age_groups, list):
+        return df, "age_groups must be a list."
+
+    if len(age_groups) < 2:
+        return df, "At least 2 age groups are required."
+
+    if len(age_groups) > 5:
+        return df, "At most 5 age groups are allowed."
+
+    parsed = []
+
+    for index, group in enumerate(age_groups):
+
+        if not isinstance(group, dict):
+            return df, f"Age group {index + 1} must be an object."
+
+        try:
+            lo = int(group.get("min"))
+            hi = int(group.get("max"))
+        except (TypeError, ValueError):
+            return df, f"Age group {index + 1}: min and max must be integers."
+
+        if lo < 0:
+            return df, f"Age group {index + 1}: minimum cannot be negative."
+
+        if lo >= hi:
+            return df, f"Age group {index + 1}: minimum must be less than maximum."
+
+        parsed.append((lo, hi))
+
+    for index in range(len(parsed) - 1):
+
+        if parsed[index][1] + 1 != parsed[index + 1][0]:
+
+            return df, (
+                f"Age groups must be contiguous. "
+                f"Group {index + 1} ends at {parsed[index][1]}, "
+                f"but group {index + 2} starts at {parsed[index + 1][0]}."
+            )
+
+    df = df.copy()
+
+    if "age_years" not in df.columns:
+
+        df["age_years"] = pd.Series(
+            [float("nan")] * len(df),
+            index=df.index
+        )
+
+    else:
+
+        df["age_years"] = pd.to_numeric(
+            df["age_years"],
+            errors="coerce"
+        )
+
+    labels = [
+        f"{lo}-{hi}"
+        for lo, hi in parsed
+    ]
+
+    edges = [parsed[0][0] - 0.5]
+
+    for _, hi in parsed:
+        edges.append(hi + 0.5)
+
+    df["age_group"] = pd.cut(
+        df["age_years"],
+        bins=edges,
+        labels=labels
+    ).astype("string")
+
+    return df, None
+
+
+# =====================================================
 # ASSOCIATION OPTIONS
 # =====================================================
 
@@ -142,8 +239,8 @@ def get_association_options(
     block="all",
     sample_type="all",
     organisms=None,
-    from_month=None,      # <-- NEW
-    to_month=None         # <-- NEW
+    from_month=None,
+    to_month=None
 ):
 
     organisms = clean_organism_list(
@@ -155,8 +252,8 @@ def get_association_options(
         block=block,
         sample_type=sample_type,
         organisms=organisms,
-        from_month=from_month,     # <-- NEW
-        to_month=to_month          # <-- NEW
+        from_month=from_month,
+        to_month=to_month
     )
 
     options["independent_variables"] = [

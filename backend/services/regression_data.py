@@ -44,13 +44,6 @@
 #     >=3 ordered categories
 #         -> Ordinal Logistic Regression
 #
-# age_group
-#     2 categories
-#         -> Binary Logistic Regression
-#
-#     >=3 ordered categories
-#         -> Ordinal Logistic Regression
-#
 # -----------------------------------------------------
 #
 # This module does NOT fit a statistical model.
@@ -88,7 +81,8 @@ import pandas as pd
 from services.regression_metadata import (
     get_regression_options,
     get_outcome_metadata,
-    get_automatic_model
+    get_automatic_model,
+    apply_custom_age_groups
 )
 
 
@@ -153,15 +147,22 @@ ANTIBIOGRAM_ORDER = [
 ]
 
 
+# -----------------------------------------------------
+# NOTE
+# -----
+# age_group is intentionally NOT listed as a
+# supported dependent variable.
+#
+# age_group may only ever be an independent variable.
+# -----------------------------------------------------
+
 SUPPORTED_DEPENDENT_VARIABLES = [
 
     CULTURE_RESULT_COLUMN,
 
     ORGANISM_COLUMN,
 
-    ANTIBIOGRAM_COLUMN,
-
-    AGE_GROUP_COLUMN
+    ANTIBIOGRAM_COLUMN
 
 ]
 
@@ -1581,6 +1582,17 @@ def prepare_organism_identification_data(
 # =====================================================
 # PREPARE ORDINAL OUTCOME DATA
 # =====================================================
+#
+# NOTE:
+# -----
+# age_group is no longer a supported dependent
+# variable. This function is retained for backwards
+# compatibility but is not reachable from the
+# dispatcher (see SUPPORTED_DEPENDENT_VARIABLES).
+#
+# If you also want this function removed entirely,
+# say so and I will produce a second version.
+# =====================================================
 
 def prepare_ordinal_outcome_data(
     df,
@@ -1589,20 +1601,6 @@ def prepare_ordinal_outcome_data(
 ):
     """
     Prepares data for ordinal logistic regression.
-
-    Outcome:
-        age_group (or other ordinal outcome)
-
-    Expected categories:
-        Explicitly ordered categories.
-
-    Parameters:
-        df: Input dataframe
-        independent_variables: List of predictors
-        ordered_categories: Explicit list of ordered categories
-
-    Returns:
-        dict with regression-ready data
     """
 
     if independent_variables is None:
@@ -1612,9 +1610,7 @@ def prepare_ordinal_outcome_data(
         )
 
 
-    # Determine which ordinal outcome column to use
-    # Currently supports age_group
-    outcome_column = "age_group"
+    outcome_column = AGE_GROUP_COLUMN
 
     validation = _validate_common_inputs(
 
@@ -1670,7 +1666,6 @@ def prepare_ordinal_outcome_data(
         }
 
 
-    # Normalize outcome
     regression_df = regression_df.copy()
 
     regression_df[
@@ -1684,7 +1679,6 @@ def prepare_ordinal_outcome_data(
     )
 
 
-    # Get observed categories
     categories = _get_observed_categories(
 
         regression_df,
@@ -1694,7 +1688,6 @@ def prepare_ordinal_outcome_data(
     )
 
 
-    # Automatic model selection
     model_selection = _determine_automatic_model(
 
         outcome_column,
@@ -1725,7 +1718,6 @@ def prepare_ordinal_outcome_data(
     model = model_selection["model"]
 
 
-    # Validate outcome according to selected model
     outcome_validation = (
         _validate_selected_model_outcome(
 
@@ -2315,7 +2307,8 @@ def prepare_regression_data(
     df,
     dependent_variable,
     independent_variables=None,
-    antibiotic=None
+    antibiotic=None,
+    age_groups=None
 ):
     """
     Main entry point for regression data preparation.
@@ -2328,6 +2321,19 @@ def prepare_regression_data(
 
     The model is automatically determined from the
     observed outcome categories after data preparation.
+
+    CUSTOM AGE GROUPS
+    -----------------
+    When `age_group` is among the selected independent
+    variables AND `age_groups` is provided (a list of
+    {"min": int, "max": int} dicts), the default
+    `age_group` column is replaced with the user's
+    custom bins BEFORE any outcome-specific
+    preparation is performed.
+
+    This means downstream category detection,
+    complete-case analysis and model selection all
+    operate on the customized bins.
 
     Parameters
     ----------
@@ -2343,6 +2349,11 @@ def prepare_regression_data(
     antibiotic:
         Required only when the dependent variable is
         antibiogram_susceptibility.
+
+    age_groups:
+        Optional list of {"min": int, "max": int} dicts.
+        Only applied when "age_group" is among the
+        independent variables.
 
     Returns
     -------
@@ -2427,6 +2438,40 @@ def prepare_regression_data(
 
 
     # =================================================
+    # CUSTOM AGE GROUPS
+    #
+    # Applied only when:
+    #   - age_group is among the independent variables
+    #   - the caller supplied age_groups
+    #
+    # The function replaces the default age_group
+    # column before any outcome-specific preparation.
+    # =================================================
+
+    if (
+        age_groups
+        and
+        "age_group" in independent_variables
+    ):
+
+        df, age_error = apply_custom_age_groups(
+            df,
+            age_groups
+        )
+
+        if age_error:
+
+            return {
+
+                "success": False,
+
+                "error":
+                    age_error
+
+            }
+
+
+    # =================================================
     # DISPATCH BASED ON OUTCOME
     # =================================================
 
@@ -2465,19 +2510,6 @@ def prepare_regression_data(
             df,
 
             antibiotic,
-
-            independent_variables
-
-        )
-
-
-    if dependent_variable == (
-        AGE_GROUP_COLUMN
-    ):
-
-        return prepare_ordinal_outcome_data(
-
-            df,
 
             independent_variables
 

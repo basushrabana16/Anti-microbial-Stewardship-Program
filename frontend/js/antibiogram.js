@@ -394,11 +394,27 @@ Antibiogram.renderTables = function () {
 
     }
 
-    const organisms =
 
+    /*
+       The backend now returns:
+
+           {
+               combined:  [ ...rows... ],     // all organisms pooled
+               organisms: { name: [ ...rows... ], ... }
+           }
+    */
+
+    const organismTables =
+        (this.data && this.data.organisms) || {};
+
+    const combinedRows =
+        (this.data && this.data.combined) || [];
+
+    const organisms =
         Object.keys(
-            this.data || {}
+            organismTables
         );
+
 
     if (organisms.length === 0) {
 
@@ -416,24 +432,48 @@ Antibiogram.renderTables = function () {
 
     }
 
+
+    /* ------------------------------------------
+       NEW: combined table FIRST (only present when
+       two or more organisms are in the selection)
+    ------------------------------------------ */
+
+    if (combinedRows.length > 0) {
+
+        this.container.appendChild(
+
+            this.createOrganismSection(
+
+                "All Selected Organisms (Combined)",
+
+                combinedRows
+
+            )
+
+        );
+
+    }
+
+
+    /* ------------------------------------------
+       Organism-wise tables
+    ------------------------------------------ */
+
     organisms.forEach(
 
         organism => {
 
             const section =
-
                 this.createOrganismSection(
 
                     organism,
 
-                    this.data[organism]
+                    organismTables[organism]
 
                 );
 
             this.container.appendChild(
-
                 section
-
             );
 
         }
@@ -754,7 +794,7 @@ Antibiogram.updateInfoStrip = function () {
 
             Object.keys(
 
-                this.data || {}
+                (this.data && this.data.organisms) || {}
 
             ).length;
 
@@ -767,7 +807,7 @@ Antibiogram.updateInfoStrip = function () {
 
         Object.values(
 
-            this.data || {}
+            (this.data && this.data.organisms) || {}
 
         ).forEach(
 

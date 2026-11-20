@@ -492,6 +492,7 @@ def association_options():
 
         }), 500
 
+
 # =====================================================
 # ASSOCIATION TEST
 # =====================================================
@@ -526,6 +527,8 @@ def association_test():
             data.get("antibiotics")
         )
 
+        age_groups = data.get("age_groups")
+
         from_month = get_body_month(
             data,
             "from_month"
@@ -556,6 +559,8 @@ def association_test():
             ),
 
             antibiotics=antibiotics,
+
+            age_groups=age_groups,
 
             from_month=from_month,
 
@@ -643,6 +648,180 @@ from services.data_loader import (
 
 
 # =====================================================
+# REGRESSION ROUTES  -  DROP-IN REPLACEMENT
+# =====================================================
+#
+# HOW TO USE
+# ----------
+# In app.py, delete everything from the
+# "REGRESSION OPTIONS" banner down to the end of the
+# /regression-preview route, and paste this whole file
+# in its place.
+#
+# This block expects these names to already exist in
+# app.py (they do in your current code):
+#
+#   app, request, jsonify, json
+#   get_query_month, get_body_month
+#   load_analysis_dataframe, apply_filters
+#   get_regression_options
+#   determine_regression_model, prepare_regression_data
+#   run_binary_logistic_regression
+#   run_multinomial_logistic_regression
+#   run_ordinal_logistic_regression
+#   finalize_regression_response, build_frontend_payload
+#   calculate_vif_diagnostics, calculate_condition_number
+#   binary_classification_diagnostics, hosmer_lemeshow_test
+#   binary_logistic_residuals, summarize_residuals
+#   check_linearity_in_logit
+#   multinomial_classification_diagnostics
+#   proportional_odds_diagnostic
+#
+# WHAT CHANGED vs. YOUR ORIGINAL ROUTES
+# -------------------------------------
+# 1. Antibiotic parsing accepts "antibiotics" (list) and
+#    the legacy "antibiotic" (string); "all" is dropped.
+# 2. antibiogram_susceptibility:
+#      0 antibiotics -> 400
+#      1 antibiotic  -> single result (same shape as before,
+#                       plus antibiogram_mode = "single")
+#      2+            -> one ordinal model per antibiotic
+# 3. ONE shared helper (_fit_single_regression) does
+#    prepare -> fit -> diagnostics -> finalize, and is used
+#    by BOTH the single path and the per-antibiotic loop.
+# 4. The model for an antibiotic comes from its own
+#    prepared data. Antibiotics with only two observed
+#    susceptibility categories cannot be fitted (binary
+#    logistic is hard-wired to culture_result), so they get
+#    a clear error instead of a confusing one.
+# 5. Each antibiotic is isolated: a failure becomes an
+#    error entry and the loop continues.
+# 6. Failure details never contain DataFrames (which would
+#    break jsonify).
+# 7. numpy / pandas are imported inside the diagnostics
+#    function, so it no longer depends on module imports.
+# 8. /regression-preview also accepts "antibiotics"
+#    (uses the first one).
+#
+# Everything else is unchanged.
+# =====================================================
+
+
+ANTIBIOGRAM_OUTCOME = "antibiogram_susceptibility"
+
+
+# =====================================================
+# SMALL HELPERS
+# =====================================================
+
+def _parse_antibiotics(data):
+    """
+    Returns a de-duplicated list of non-empty antibiotic
+    names from the request body.
+
+    Accepts:
+        "antibiotics": ["amikacin", "meropenem"]   (new)
+        "antibiotic":  "amikacin"                  (legacy)
+
+    "all" is dropped. First occurrence order is kept.
+    """
+
+    payload = data.get("antibiotics")
+
+    if payload is None:
+
+        legacy = data.get("antibiotic")
+
+        payload = [] if legacy is None else [legacy]
+
+    if isinstance(payload, str):
+
+        payload = [payload]
+
+    elif not isinstance(payload, (list, tuple)):
+
+        payload = []
+
+    cleaned = []
+
+    seen = set()
+
+    for item in payload:
+
+        if item is None:
+
+            continue
+
+        name = str(item).strip()
+
+        if not name or name.lower() == "all":
+
+            continue
+
+        key = name.lower()
+
+        if key in seen:
+
+            continue
+
+        seen.add(key)
+
+        cleaned.append(name)
+
+    return cleaned
+
+
+def _strip_dataframes(result):
+    """
+    Returns a shallow copy of a result dict without the
+    regression DataFrame (and any other pandas object) so
+    it can be safely passed to jsonify().
+    """
+
+    import pandas as pd
+
+    if not isinstance(result, dict):
+
+        return result
+
+    return {
+
+        key: value
+
+        for key, value in result.items()
+
+        if key != "data"
+        and not isinstance(value, (pd.DataFrame, pd.Series))
+
+    }
+
+
+def _model_statistics_summary(model_result):
+    """
+    Model-level fit statistics used by every diagnostics
+    branch.
+    """
+
+    statistics = model_result.get("statistics", {}) or {}
+
+    return {
+
+        "aic":
+            statistics.get("aic"),
+
+        "bic":
+            statistics.get("bic"),
+
+        "log_likelihood":
+            statistics.get("log_likelihood"),
+
+        "mcfadden_pseudo_r_squared":
+            statistics.get("mcfadden_pseudo_r_squared")
+
+    }
+
+
+# =====================================================
 # REGRESSION OPTIONS
 # =====================================================
 
@@ -681,7 +860,6 @@ def regression_options():
             "to_month"
         )
 
-
         options = get_regression_options(
 
             district=district,
@@ -698,11 +876,9 @@ def regression_options():
 
         )
 
-
         return jsonify(
             options
         ), 200
-
 
     except Exception as exc:
 
@@ -717,6 +893,7 @@ def regression_options():
                 str(exc)
 
         }), 500
+
 
 # =====================================================
 # DETERMINE REGRESSION MODEL
@@ -735,16 +912,21 @@ def regression_model():
         )
 
         if not isinstance(data, dict):
+
             return jsonify({
+
                 "success": False,
-                "error": "Request body must be a JSON object."
+
+                "error":
+                    "Request body must be a JSON object."
+
             }), 400
 
         dependent_variable = data.get(
             "dependent_variable"
         )
 
-        # Get observed categories if provided
+        # Observed categories, if provided
         observed_categories = data.get(
             "observed_categories"
         )
@@ -760,12 +942,10 @@ def regression_model():
 
             }), 400
 
-
         result = determine_regression_model(
             dependent_variable,
             observed_categories=observed_categories
         )
-
 
         if not result.get(
             "success",
@@ -776,11 +956,9 @@ def regression_model():
                 result
             ), 400
 
-
         return jsonify(
             result
         ), 200
-
 
     except Exception as exc:
 
@@ -817,21 +995,22 @@ def regression():
             silent=True
         )
 
-        # =================================================
-        # DEBUG: Print request data
-        # =================================================
         print("\n" + "=" * 60)
         print("REGRESSION REQUEST RECEIVED")
         print("=" * 60)
         print("Request data type:", type(data))
+
         if data:
+
             print("Request data keys:", list(data.keys()))
             print("Request data:")
             print(json.dumps(data, indent=2, default=str))
-        else:
-            print("Request data is None or empty")
-        print("=" * 60 + "\n")
 
+        else:
+
+            print("Request data is None or empty")
+
+        print("=" * 60 + "\n")
 
         if not isinstance(
             data,
@@ -839,6 +1018,7 @@ def regression():
         ):
 
             print("ERROR: Request body is not a dictionary")
+
             return jsonify({
 
                 "success": False,
@@ -847,7 +1027,6 @@ def regression():
                     "Request body must be a JSON object."
 
             }), 400
-
 
         # =================================================
         # FILTERS
@@ -875,9 +1054,8 @@ def regression():
 
         # Ensure organisms is a list
         if isinstance(organisms, str):
-            organisms = [organisms] if organisms != "all" else []
 
-        print(f"Filters: district={district}, block={block}, sample_type={sample_type}, organisms={organisms}")
+            organisms = [organisms] if organisms != "all" else []
 
         from_month = get_body_month(
             data,
@@ -889,8 +1067,11 @@ def regression():
             "to_month"
         )
 
-        print(f"Filters: district={district}, block={block}, sample_type={sample_type}, organisms={organisms}, from_month={from_month}, to_month={to_month}")
-
+        print(
+            f"Filters: district={district}, block={block}, "
+            f"sample_type={sample_type}, organisms={organisms}, "
+            f"from_month={from_month}, to_month={to_month}"
+        )
 
         # =================================================
         # REGRESSION VARIABLES
@@ -907,27 +1088,44 @@ def regression():
 
         # Ensure independent_variables is a list
         if isinstance(independent_variables, str):
+
             independent_variables = [independent_variables]
+
         elif not isinstance(independent_variables, list):
+
             independent_variables = []
 
-        print(f"Variables: dependent={dependent_variable}, independent={independent_variables}")
-
-
-        # =================================================
-        # ANTIBIOTIC
-        # =================================================
-
-        antibiotic = data.get(
-            "antibiotic"
+        print(
+            f"Variables: dependent={dependent_variable}, "
+            f"independent={independent_variables}"
         )
 
-        # If antibiotic is "all", treat as None
-        if antibiotic == "all":
-            antibiotic = None
+        # =================================================
+        # ANTIBIOTICS
+        #
+        # Accepts "antibiotics" (list) and the legacy
+        # "antibiotic" (string). "all" is dropped.
+        # =================================================
 
-        print(f"Antibiotic: {antibiotic}")
+        antibiotics = _parse_antibiotics(
+            data
+        )
 
+        print(f"Antibiotics: {antibiotics}")
+
+        # =================================================
+        # CUSTOM AGE GROUPS
+        # =================================================
+
+        age_groups = data.get(
+            "age_groups"
+        )
+
+        if not isinstance(age_groups, list):
+
+            age_groups = None
+
+        print(f"Age groups: {age_groups}")
 
         # =================================================
         # ORDINAL CATEGORIES (for ordinal logistic)
@@ -937,7 +1135,6 @@ def regression():
             "ordered_categories"
         )
 
-
         # =================================================
         # BASIC VALIDATION
         # =================================================
@@ -945,6 +1142,7 @@ def regression():
         if not dependent_variable:
 
             print("ERROR: Dependent variable is missing")
+
             return jsonify({
 
                 "success": False,
@@ -954,10 +1152,10 @@ def regression():
 
             }), 400
 
-
         if not independent_variables:
 
             print("ERROR: Independent variables are missing")
+
             return jsonify({
 
                 "success": False,
@@ -968,18 +1166,36 @@ def regression():
 
             }), 400
 
+        is_antibiogram = (
+            dependent_variable == ANTIBIOGRAM_OUTCOME
+        )
+
+        if is_antibiogram and len(antibiotics) == 0:
+
+            print("ERROR: Antibiogram outcome requires antibiotics")
+
+            return jsonify({
+
+                "success": False,
+
+                "error":
+                    "At least one antibiotic must be selected "
+                    "for antibiogram regression."
+
+            }), 400
 
         # =================================================
         # LOAD COMPLETE ANALYSIS DATA
         # =================================================
 
         print("Loading analysis dataframe...")
-        df = load_analysis_dataframe()
 
+        df = load_analysis_dataframe()
 
         if df is None or df.empty:
 
             print("ERROR: No analysis data available")
+
             return jsonify({
 
                 "success": False,
@@ -991,12 +1207,12 @@ def regression():
 
         print(f"Dataframe loaded: {len(df)} rows")
 
-
         # =================================================
         # APPLY COMMON FILTERS
         # =================================================
 
         print("Applying filters...")
+
         filtered_df = apply_filters(
 
             df,
@@ -1015,10 +1231,10 @@ def regression():
 
         )
 
-
         if filtered_df is None or filtered_df.empty:
 
             print("ERROR: No records after filtering")
+
             return jsonify({
 
                 "success": False,
@@ -1033,289 +1249,104 @@ def regression():
 
         print(f"After filtering: {len(filtered_df)} rows")
 
+        filters_metadata = {
 
-        # =================================================
-        # AUTOMATIC MODEL SELECTION
-        # =================================================
+            "district":
+                district,
 
-        print("Determining model...")
-        model_information = (
-            determine_regression_model(
-                dependent_variable
-            )
-        )
+            "block":
+                block,
 
+            "sample_type":
+                sample_type,
 
-        if not model_information.get(
-            "success",
-            False
-        ):
+            "organisms":
+                organisms,
 
-            print(f"ERROR: Model selection failed: {model_information}")
-            return jsonify(
-                model_information
-            ), 400
+            "from_month":
+                from_month,
 
-
-        model_type = model_information[
-            "model"
-        ]
-
-        print(f"Selected model: {model_type}")
-
-
-        # =================================================
-        # PREPARE REGRESSION DATA
-        # =================================================
-
-        print("Preparing regression data...")
-        prepared = prepare_regression_data(
-
-            filtered_df,
-
-            dependent_variable=
-
-                dependent_variable,
-
-            independent_variables=
-
-                independent_variables,
-
-            antibiotic=
-
-                antibiotic
-
-        )
-
-
-        if not prepared.get(
-            "success",
-            False
-        ):
-
-            print(f"ERROR: Data preparation failed: {prepared.get('error')}")
-            return jsonify({
-
-                "success": False,
-
-                "model":
-                    model_type,
-
-                "error":
-                    prepared.get(
-                        "error",
-                        "Unable to prepare regression data."
-                    ),
-
-                "details":
-                    prepared
-
-            }), 400
-
-
-        regression_df = prepared.get(
-            "data"
-        )
-
-
-        if regression_df is None:
-
-            print("ERROR: Regression dataframe is None")
-            return jsonify({
-
-                "success": False,
-
-                "model":
-                    model_type,
-
-                "error":
-                    "Regression-ready dataframe is missing."
-
-            }), 400
-
-        print(f"Regression data prepared: {len(regression_df)} rows")
-
-
-        # =================================================
-        # FIT MODEL
-        # =================================================
-
-        print("Fitting model...")
-        if model_type == "binary_logistic":
-
-            model_result = (
-                run_binary_logistic_regression(
-
-                    filtered_df,
-
-                    independent_variables
-
-                )
-            )
-
-
-        elif model_type == "multinomial_logistic":
-
-            model_result = (
-                run_multinomial_logistic_regression(
-
-                    filtered_df,
-
-                    independent_variables,
-
-                    prepared_data=prepared
-
-                )
-            )
-
-
-        elif model_type == "ordinal_logistic":
-
-            model_result = (
-                run_ordinal_logistic_regression(
-
-                    filtered_df,
-
-                    independent_variables,
-
-                    ordered_categories=ordered_categories,
-
-                    ordinal_outcome_column=dependent_variable,
-
-                    prepared_data=prepared
-
-                )
-            )
-
-
-        else:
-
-            print(f"ERROR: Unsupported model type: {model_type}")
-            return jsonify({
-
-                "success": False,
-
-                "error":
-                    (
-                        f"Unsupported regression model "
-                        f"'{model_type}'."
-                    )
-
-            }), 400
-
-
-        if not model_result.get(
-            "success",
-            False
-        ):
-
-            print(f"ERROR: Model fitting failed: {model_result.get('error')}")
-            return jsonify(
-                model_result
-            ), 400
-
-        print("Model fitted successfully")
-
-
-        # =================================================
-        # DIAGNOSTICS
-        # =================================================
-
-        print("Running diagnostics...")
-        diagnostics = (
-            _run_regression_diagnostics_for_app(
-                model_type=model_type,
-                model_result=model_result,
-                regression_df=regression_df,
-                independent_variables=independent_variables,
-                prepared=prepared
-            )
-        )
-
-
-        # =================================================
-        # REQUEST METADATA
-        # =================================================
-
-        metadata = {
-
-            "filters": {
-
-                "district":
-                    district,
-
-                "block":
-                    block,
-
-                "sample_type":
-                    sample_type,
-
-                "organisms":
-                    organisms,
-
-                "from_month":
-                    from_month,
-
-                "to_month":
-                    to_month
-
-            },
-
-            "dependent_variable":
-                dependent_variable,
-
-            "independent_variables":
-                independent_variables,
-
-            "antibiotic":
-                antibiotic,
-
-            "automatically_selected_model":
-                model_type
+            "to_month":
+                to_month
 
         }
 
-
         # =================================================
-        # FINALIZE RESPONSE
+        # MULTI-ANTIBIOTIC BRANCH
+        #
+        # antibiogram_susceptibility AND two or more
+        # antibiotics -> one separate model per antibiotic.
+        # No pooled model is produced.
         # =================================================
 
-        print("Finalizing response...")
-        final_result = (
-            finalize_regression_response(
+        if is_antibiogram and len(antibiotics) > 1:
 
-                model_type=model_type,
+            return _run_per_antibiotic_regressions(
 
-                model_result=model_result,
+                filtered_df=filtered_df,
 
-                diagnostics=diagnostics,
+                dependent_variable=dependent_variable,
 
-                metadata=metadata,
+                independent_variables=independent_variables,
 
-                alpha=0.05
+                antibiotics=antibiotics,
+
+                ordered_categories=ordered_categories,
+
+                age_groups=age_groups,
+
+                filters_metadata=filters_metadata
 
             )
-        )
-
 
         # =================================================
-        # FRONTEND PAYLOAD
+        # SINGLE-MODEL PATH
+        #
+        # Includes:
+        #   - single-antibiotic antibiogram regression
+        #   - culture_result
+        #   - organism_identification
         # =================================================
 
-        frontend_payload = (
-            build_frontend_payload(
-                final_result
-            )
+        single_antibiotic = (
+            antibiotics[0] if is_antibiogram else None
         )
 
-        print("=" * 60)
-        print("REGRESSION COMPLETED SUCCESSFULLY")
-        print("=" * 60 + "\n")
+        payload, status = _fit_single_regression(
+
+            filtered_df=filtered_df,
+
+            dependent_variable=dependent_variable,
+
+            independent_variables=independent_variables,
+
+            antibiotic=single_antibiotic,
+
+            ordered_categories=ordered_categories,
+
+            age_groups=age_groups,
+
+            filters_metadata=filters_metadata
+
+        )
+
+        if status == 200 and is_antibiogram:
+
+            payload["antibiogram_mode"] = "single"
+
+            payload["selected_antibiotics"] = [
+                single_antibiotic
+            ]
+
+        if status == 200:
+
+            print("=" * 60)
+            print("REGRESSION COMPLETED SUCCESSFULLY")
+            print("=" * 60 + "\n")
 
         return jsonify(
-            frontend_payload
-        ), 200
-
+            payload
+        ), status
 
     except Exception as exc:
 
@@ -1338,6 +1369,549 @@ def regression():
 
 
 # =====================================================
+# FIT ONE REGRESSION  (shared by single + multi paths)
+# =====================================================
+
+def _fit_single_regression(
+    filtered_df,
+    dependent_variable,
+    independent_variables,
+    antibiotic,
+    ordered_categories,
+    age_groups,
+    filters_metadata
+):
+    """
+    Runs the complete pipeline for ONE regression:
+
+        determine model -> prepare data -> fit
+        -> diagnostics -> finalize -> frontend payload
+
+    Returns
+    -------
+    (payload_dict, http_status)
+
+    On success the payload is the normal frontend payload
+    and the status is 200. On failure the payload contains
+    "success": False and an "error" message.
+
+    This function never returns DataFrames in the payload.
+    """
+
+    is_antibiogram = (
+        dependent_variable == ANTIBIOGRAM_OUTCOME
+    )
+
+    # -------------------------------------------------
+    # Default model for this outcome
+    # -------------------------------------------------
+
+    model_information = determine_regression_model(
+        dependent_variable
+    )
+
+    if not model_information.get("success", False):
+
+        print(f"ERROR: Model selection failed: {model_information}")
+
+        return _strip_dataframes(
+            model_information
+        ), 400
+
+    model_type = model_information["model"]
+
+    print(f"Default model for outcome: {model_type}")
+
+    # -------------------------------------------------
+    # Prepare data
+    #
+    # age_groups is forwarded so custom age bins are
+    # applied before complete-case analysis and
+    # category detection.
+    # -------------------------------------------------
+
+    print("Preparing regression data...")
+
+    prepared = prepare_regression_data(
+
+        filtered_df,
+
+        dependent_variable=
+            dependent_variable,
+
+        independent_variables=
+            independent_variables,
+
+        antibiotic=
+            antibiotic,
+
+        age_groups=
+            age_groups
+
+    )
+
+    if not prepared.get("success", False):
+
+        print(f"ERROR: Data preparation failed: {prepared.get('error')}")
+
+        return {
+
+            "success": False,
+
+            "model":
+                model_type,
+
+            "error":
+                prepared.get(
+                    "error",
+                    "Unable to prepare regression data."
+                ),
+
+            "details":
+                _strip_dataframes(prepared)
+
+        }, 400
+
+    regression_df = prepared.get("data")
+
+    if regression_df is None:
+
+        print("ERROR: Regression dataframe is None")
+
+        return {
+
+            "success": False,
+
+            "model":
+                model_type,
+
+            "error":
+                "Regression-ready dataframe is missing."
+
+        }, 400
+
+    print(f"Regression data prepared: {len(regression_df)} rows")
+
+    # -------------------------------------------------
+    # ANTIBIOGRAM: model comes from THIS antibiotic's
+    # observed categories.
+    #
+    #   3 categories -> ordinal logistic  (supported)
+    #   2 categories -> binary logistic   (NOT supported
+    #                   for antibiogram: the binary module
+    #                   is hard-wired to culture_result)
+    #
+    # A clear error is returned in the second case.
+    # -------------------------------------------------
+
+    if is_antibiogram:
+
+        selection = prepared.get("model_selection") or {}
+
+        prepared_model = (
+            prepared.get("model")
+            or selection.get("model")
+        )
+
+        if prepared_model:
+
+            model_type = prepared_model
+
+        print(f"Model for antibiotic '{antibiotic}': {model_type}")
+
+        if model_type != "ordinal_logistic":
+
+            categories = (
+                selection.get("observed_categories")
+                or prepared.get("outcome_categories")
+                or []
+            )
+
+            observed_text = (
+                ", ".join(str(c) for c in categories)
+                if categories else "unknown"
+            )
+
+            message = (
+                f"Only {len(categories)} susceptibility "
+                f"categor{'y' if len(categories) == 1 else 'ies'} "
+                f"observed for '{antibiotic}' ({observed_text}) "
+                "after filtering and complete-case analysis. "
+                "Ordinal logistic regression needs all three: "
+                "resistant, intermediate and susceptible."
+            )
+
+            print(f"ERROR: {message}")
+
+            return {
+
+                "success": False,
+
+                "model":
+                    model_type,
+
+                "antibiotic":
+                    antibiotic,
+
+                "error":
+                    message,
+
+                "details": {
+
+                    "observed_categories":
+                        list(categories),
+
+                    "final_n":
+                        prepared.get("final_n")
+
+                }
+
+            }, 400
+
+    # -------------------------------------------------
+    # Fit model
+    #
+    # All model modules receive the PREPARED dataframe so
+    # custom age bins survive into model fitting.
+    # -------------------------------------------------
+
+    print("Fitting model...")
+
+    if model_type == "binary_logistic":
+
+        model_result = run_binary_logistic_regression(
+
+            regression_df,
+
+            independent_variables,
+
+            prepared_data=prepared
+
+        )
+
+    elif model_type == "multinomial_logistic":
+
+        model_result = run_multinomial_logistic_regression(
+
+            regression_df,
+
+            independent_variables,
+
+            prepared_data=prepared
+
+        )
+
+    elif model_type == "ordinal_logistic":
+
+        model_result = run_ordinal_logistic_regression(
+
+            regression_df,
+
+            independent_variables,
+
+            ordered_categories=ordered_categories,
+
+            ordinal_outcome_column=dependent_variable,
+
+            prepared_data=prepared
+
+        )
+
+    else:
+
+        print(f"ERROR: Unsupported model type: {model_type}")
+
+        return {
+
+            "success": False,
+
+            "error":
+                f"Unsupported regression model '{model_type}'."
+
+        }, 400
+
+    if not model_result.get("success", False):
+
+        print(f"ERROR: Model fitting failed: {model_result.get('error')}")
+
+        failure = _strip_dataframes(model_result)
+
+        failure["success"] = False
+
+        failure.setdefault(
+            "error",
+            "Model fitting failed."
+        )
+
+        return failure, 400
+
+    print("Model fitted successfully")
+
+    # -------------------------------------------------
+    # Diagnostics
+    # -------------------------------------------------
+
+    print("Running diagnostics...")
+
+    diagnostics = _run_regression_diagnostics_for_app(
+
+        model_type=model_type,
+
+        model_result=model_result,
+
+        regression_df=regression_df,
+
+        independent_variables=independent_variables,
+
+        prepared=prepared
+
+    )
+
+    # -------------------------------------------------
+    # Metadata
+    # -------------------------------------------------
+
+    metadata = {
+
+        "filters":
+            filters_metadata,
+
+        "dependent_variable":
+            dependent_variable,
+
+        "independent_variables":
+            independent_variables,
+
+        "antibiotic":
+            antibiotic,
+
+        "age_groups":
+            age_groups,
+
+        "automatically_selected_model":
+            model_type
+
+    }
+
+    # -------------------------------------------------
+    # Finalize + frontend payload
+    # -------------------------------------------------
+
+    print("Finalizing response...")
+
+    final_result = finalize_regression_response(
+
+        model_type=model_type,
+
+        model_result=model_result,
+
+        diagnostics=diagnostics,
+
+        metadata=metadata,
+
+        alpha=0.05
+
+    )
+
+    frontend_payload = build_frontend_payload(
+        final_result
+    )
+
+    return frontend_payload, 200
+
+
+# =====================================================
+# PER-ANTIBIOTIC REGRESSIONS
+# =====================================================
+
+def _run_per_antibiotic_regressions(
+    filtered_df,
+    dependent_variable,
+    independent_variables,
+    antibiotics,
+    ordered_categories,
+    age_groups,
+    filters_metadata
+):
+    """
+    Runs one ordinal logistic regression per selected
+    antibiotic and returns a Flask response shaped like:
+
+        {
+          "success": True,
+          "antibiogram_mode": "multi",
+          "dependent_variable": "antibiogram_susceptibility",
+          "selected_antibiotics": [...],
+          "independent_variables": [...],
+          "model": "ordinal_logistic",
+          "antibiotics": {
+             "amikacin":  { ...frontend payload... },
+             "meropenem": { "success": False, "error": "..." },
+             ...
+          },
+          "total_models_attempted": N,
+          "total_models_succeeded": M
+        }
+
+    Each antibiotic is prepared independently, so its
+    analysis subset contains only rows with a susceptibility
+    result for that antibiotic (N differs between
+    antibiotics).
+
+    A failure for one antibiotic is recorded and the loop
+    continues with the next one.
+    """
+
+    per_antibiotic = {}
+
+    succeeded = 0
+
+    total = len(antibiotics)
+
+    for index, antibiotic in enumerate(antibiotics, 1):
+
+        print(f"--- Antibiotic {index}/{total}: {antibiotic} ---")
+
+        try:
+
+            payload, status = _fit_single_regression(
+
+                filtered_df=filtered_df,
+
+                dependent_variable=dependent_variable,
+
+                independent_variables=independent_variables,
+
+                antibiotic=antibiotic,
+
+                ordered_categories=ordered_categories,
+
+                age_groups=age_groups,
+
+                filters_metadata=filters_metadata
+
+            )
+
+        except Exception as exc:
+
+            import traceback
+            traceback.print_exc()
+
+            payload = {
+
+                "success": False,
+
+                "error":
+                    f"Unexpected error while fitting "
+                    f"'{antibiotic}': {str(exc)}"
+
+            }
+
+            status = 500
+
+        if status == 200 and payload.get("success", True) is not False:
+
+            # Tell the frontend which antibiotic this is
+            payload["antibiotic"] = antibiotic
+
+            per_antibiotic[antibiotic] = payload
+
+            succeeded += 1
+
+        else:
+
+            print(
+                f"Antibiotic {index}/{total} failed: "
+                f"{payload.get('error')}"
+            )
+
+            entry = dict(payload)
+
+            entry["success"] = False
+
+            entry["antibiotic"] = antibiotic
+
+            entry.setdefault(
+                "error",
+                f"Unable to fit a model for '{antibiotic}'."
+            )
+
+            per_antibiotic[antibiotic] = entry
+
+    # =================================================
+    # NOTHING COULD BE FITTED
+    # =================================================
+
+    if succeeded == 0:
+
+        reasons = "; ".join(
+
+            f"{name}: {entry.get('error', 'failed')}"
+
+            for name, entry in per_antibiotic.items()
+
+        )
+
+        return jsonify({
+
+            "success": False,
+
+            "antibiogram_mode": "multi",
+
+            "dependent_variable":
+                dependent_variable,
+
+            "selected_antibiotics":
+                antibiotics,
+
+            "independent_variables":
+                independent_variables,
+
+            "error":
+                "None of the selected antibiotics could be "
+                "modelled with the current data and "
+                "predictors. " + reasons,
+
+            "antibiotics":
+                per_antibiotic
+
+        }), 400
+
+    # =================================================
+    # AT LEAST ONE MODEL FITTED
+    # =================================================
+
+    return jsonify({
+
+        "success": True,
+
+        "antibiogram_mode": "multi",
+
+        "dependent_variable":
+            dependent_variable,
+
+        "selected_antibiotics":
+            antibiotics,
+
+        "independent_variables":
+            independent_variables,
+
+        "model":
+            "ordinal_logistic",
+
+        "antibiotics":
+            per_antibiotic,
+
+        "total_models_attempted":
+            total,
+
+        "total_models_succeeded":
+            succeeded
+
+    }), 200
+
+
+# =====================================================
 # REGRESSION DIAGNOSTICS DISPATCHER
 # =====================================================
 
@@ -1349,8 +1923,10 @@ def _run_regression_diagnostics_for_app(
     prepared=None
 ):
 
-    diagnostics = {}
+    import numpy as np
+    import pandas as pd
 
+    diagnostics = {}
 
     # =================================================
     # DESIGN MATRIX / VIF
@@ -1359,13 +1935,11 @@ def _run_regression_diagnostics_for_app(
     X = None
     reference_categories = None
 
-
     try:
 
         from services.regression_helpers import (
             build_design_matrix
         )
-
 
         # build_design_matrix returns (X, reference_categories)
         X, reference_categories = build_design_matrix(
@@ -1376,11 +1950,9 @@ def _run_regression_diagnostics_for_app(
 
         )
 
-
-    except Exception as exc:
+    except Exception:
 
         X = None
-
 
     # =================================================
     # BASIC DIAGNOSTICS
@@ -1394,16 +1966,17 @@ def _run_regression_diagnostics_for_app(
                 X
             )
 
-            # Extract the actual VIF list if success
             if vif_result.get("success", False):
+
                 diagnostics["vif"] = vif_result.get("vif", [])
+
             else:
+
                 diagnostics["vif"] = []
 
-        except Exception as exc:
+        except Exception:
 
             diagnostics["vif"] = []
-
 
         try:
 
@@ -1413,23 +1986,17 @@ def _run_regression_diagnostics_for_app(
                 X
             )
 
-        except Exception as exc:
+        except Exception:
 
             diagnostics[
                 "condition_number"
             ] = None
 
-
     # =================================================
     # CONVERGENCE
     # =================================================
 
-    # The model modules return the convergence status,
-    # so use that when available.
-
-    diagnostics[
-        "convergence"
-    ] = {
+    diagnostics["convergence"] = {
 
         "success": True,
 
@@ -1443,19 +2010,22 @@ def _run_regression_diagnostics_for_app(
 
     }
 
-
     # =================================================
     # SAMPLE INFORMATION
     # =================================================
 
     diagnostics["sample_information"] = {
 
-        "n": model_result.get("n"),
-        "number_predictors": model_result.get("number_predictors"),
-        "number_parameters": model_result.get("number_parameters")
+        "n":
+            model_result.get("n"),
+
+        "number_predictors":
+            model_result.get("number_predictors"),
+
+        "number_parameters":
+            model_result.get("number_parameters")
 
     }
-
 
     # =================================================
     # BINARY LOGISTIC
@@ -1466,9 +2036,9 @@ def _run_regression_diagnostics_for_app(
         y_true = None
         predicted_probability = None
 
-
         # ---------------------------------------------
-        # Get observed outcome
+        # Observed outcome (culture_result:
+        # negative -> 0, positive -> 1)
         # ---------------------------------------------
 
         if (
@@ -1493,12 +2063,6 @@ def _run_regression_diagnostics_for_app(
 
                 )
 
-
-                # Expected binary coding:
-                #
-                # negative -> 0
-                # positive -> 1
-
                 y_true = (
                     outcome == "positive"
                 ).astype(int).values
@@ -1507,49 +2071,61 @@ def _run_regression_diagnostics_for_app(
 
                 y_true = None
 
-
         # ---------------------------------------------
-        # Try to obtain predictions from model_result
+        # Predicted probabilities from the coefficients
         # ---------------------------------------------
 
         try:
 
-            # The binary logistic module doesn't return predictions yet
-            # We can compute them if we have the design matrix and coefficients
             if X is not None and "coefficients" in model_result:
 
-                import numpy as np
-
-                # Build coefficient vector
                 coef_dict = {}
-                for coef in model_result.get("coefficients", []):
-                    coef_dict[coef.get("variable")] = coef.get("coefficient")
 
-                # Get intercept
+                for coef in model_result.get("coefficients", []):
+
+                    coef_dict[
+                        coef.get("variable")
+                    ] = coef.get("coefficient")
+
                 intercept = coef_dict.get("Intercept", 0.0)
 
-                # Get predictor coefficients
                 X_coefs = []
+
                 for col in X.columns:
+
                     if col == "const":
+
                         continue
-                    X_coefs.append(coef_dict.get(col, 0.0))
 
-                # Compute linear predictor
-                X_matrix = X.drop(columns=["const"], errors="ignore").values
-                linear_predictor = intercept + np.dot(X_matrix, X_coefs)
+                    X_coefs.append(
+                        coef_dict.get(col, 0.0)
+                    )
 
-                # Compute predicted probabilities
-                predicted_probability = 1 / (1 + np.exp(-linear_predictor))
-                predicted_probability = np.clip(predicted_probability, 0, 1)
+                X_matrix = X.drop(
+                    columns=["const"],
+                    errors="ignore"
+                ).values
 
-        except Exception as exc:
+                linear_predictor = (
+                    intercept + np.dot(X_matrix, X_coefs)
+                )
+
+                predicted_probability = (
+                    1 / (1 + np.exp(-linear_predictor))
+                )
+
+                predicted_probability = np.clip(
+                    predicted_probability,
+                    0,
+                    1
+                )
+
+        except Exception:
 
             predicted_probability = None
 
-
         # ---------------------------------------------
-        # Classification diagnostics
+        # Classification-type diagnostics
         # ---------------------------------------------
 
         if (
@@ -1566,23 +2142,19 @@ def _run_regression_diagnostics_for_app(
 
                 diagnostics[
                     "classification"
-                ] = (
-                    binary_classification_diagnostics(
+                ] = binary_classification_diagnostics(
 
-                        y_true,
+                    y_true,
 
-                        predicted_probability,
+                    predicted_probability,
 
-                        threshold=0.50
+                    threshold=0.50
 
-                    )
                 )
 
             except Exception as exc:
 
-                diagnostics[
-                    "classification"
-                ] = {
+                diagnostics["classification"] = {
 
                     "success": False,
 
@@ -1591,30 +2163,21 @@ def _run_regression_diagnostics_for_app(
 
                 }
 
-
-            # -----------------------------------------
-            # Hosmer-Lemeshow
-            # -----------------------------------------
-
             try:
 
                 diagnostics[
                     "hosmer_lemeshow"
-                ] = (
-                    hosmer_lemeshow_test(
+                ] = hosmer_lemeshow_test(
 
-                        y_true,
+                    y_true,
 
-                        predicted_probability
+                    predicted_probability
 
-                    )
                 )
 
             except Exception as exc:
 
-                diagnostics[
-                    "hosmer_lemeshow"
-                ] = {
+                diagnostics["hosmer_lemeshow"] = {
 
                     "success": False,
 
@@ -1623,33 +2186,19 @@ def _run_regression_diagnostics_for_app(
 
                 }
 
-
-            # -----------------------------------------
-            # Residuals
-            # -----------------------------------------
-
             try:
 
-                residual_result = (
-                    binary_logistic_residuals(
+                residual_result = binary_logistic_residuals(
 
-                        y_true,
+                    y_true,
 
-                        predicted_probability
+                    predicted_probability
 
-                    )
                 )
 
+                diagnostics["residuals"] = residual_result
 
-                diagnostics[
-                    "residuals"
-                ] = residual_result
-
-
-                if residual_result.get(
-                    "success",
-                    False
-                ):
+                if residual_result.get("success", False):
 
                     diagnostics[
                         "residual_summary"
@@ -1664,9 +2213,7 @@ def _run_regression_diagnostics_for_app(
 
             except Exception as exc:
 
-                diagnostics[
-                    "residuals"
-                ] = {
+                diagnostics["residuals"] = {
 
                     "success": False,
 
@@ -1675,20 +2222,17 @@ def _run_regression_diagnostics_for_app(
 
                 }
 
-
             # -----------------------------------------
-            # Linearity in logit
+            # Linearity in the logit
             # -----------------------------------------
 
             continuous_variables = []
-
 
             for variable in independent_variables:
 
                 if variable not in regression_df.columns:
 
                     continue
-
 
                 if pd.api.types.is_numeric_dtype(
                     regression_df[variable]
@@ -1697,7 +2241,6 @@ def _run_regression_diagnostics_for_app(
                     continuous_variables.append(
                         variable
                     )
-
 
             if continuous_variables:
 
@@ -1719,9 +2262,7 @@ def _run_regression_diagnostics_for_app(
 
                 except Exception as exc:
 
-                    diagnostics[
-                        "linearity_in_logit"
-                    ] = {
+                    diagnostics["linearity_in_logit"] = {
 
                         "success": False,
 
@@ -1730,49 +2271,11 @@ def _run_regression_diagnostics_for_app(
 
                     }
 
-
-        # ---------------------------------------------
-        # Model-level diagnostics
-        # ---------------------------------------------
-
         diagnostics[
             "model_diagnostics"
-        ] = {
-
-            "aic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "aic"
-                ),
-
-            "bic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "bic"
-                ),
-
-            "log_likelihood":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "log_likelihood"
-                ),
-
-            "mcfadden_pseudo_r_squared":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "mcfadden_pseudo_r_squared"
-                )
-
-        }
-
+        ] = _model_statistics_summary(
+            model_result
+        )
 
     # =================================================
     # MULTINOMIAL LOGISTIC
@@ -1783,9 +2286,8 @@ def _run_regression_diagnostics_for_app(
         probabilities = None
         y_true = None
 
-
         # ---------------------------------------------
-        # Get observed outcome
+        # Observed outcome
         # ---------------------------------------------
 
         if (
@@ -1816,17 +2318,14 @@ def _run_regression_diagnostics_for_app(
 
                 )
 
-
                 mapping = {
 
-                    category:
-                        index
+                    category: index
 
                     for index, category
                     in enumerate(categories)
 
                 }
-
 
                 y_true = (
 
@@ -1850,64 +2349,94 @@ def _run_regression_diagnostics_for_app(
 
                 y_true = None
 
-
         # ---------------------------------------------
-        # Try to compute probabilities from coefficients
+        # Probabilities from the coefficients (softmax)
         # ---------------------------------------------
 
         try:
 
             if X is not None and "coefficients" in model_result:
 
-                # Get outcome categories
-                outcome_categories = model_result.get("outcome_categories", [])
+                outcome_categories = model_result.get(
+                    "outcome_categories",
+                    []
+                )
+
                 n_categories = len(outcome_categories)
 
                 if n_categories > 1:
 
-                    # Build coefficient matrix
                     coef_matrix = {}
+
                     for coef in model_result.get("coefficients", []):
+
                         outcome = coef.get("outcome_category")
                         variable = coef.get("variable")
                         value = coef.get("coefficient")
+
                         if outcome and variable:
+
                             if outcome not in coef_matrix:
+
                                 coef_matrix[outcome] = {}
+
                             coef_matrix[outcome][variable] = value
 
-                    # Prepare design matrix without intercept
-                    X_matrix = X.drop(columns=["const"], errors="ignore").values
+                    X_matrix = X.drop(
+                        columns=["const"],
+                        errors="ignore"
+                    ).values
 
-                    # Compute linear predictors for each category
-                    # Reference category is 0
                     n_obs = len(X_matrix)
-                    linear_pred = np.zeros((n_obs, n_categories))
 
-                    # Reference category (index 0) has linear predictor = 0
-                    for i, outcome in enumerate(outcome_categories[1:], 1):
+                    linear_pred = np.zeros(
+                        (n_obs, n_categories)
+                    )
+
+                    # Reference category (index 0) stays 0
+                    for i, outcome in enumerate(
+                        outcome_categories[1:],
+                        1
+                    ):
+
                         if outcome in coef_matrix:
-                            coefs = coef_matrix[outcome]
-                            intercept = coefs.get("Intercept", 0.0)
-                            # Get coefficients for each predictor
-                            pred_coefs = []
-                            for col in X.columns:
-                                if col == "const":
-                                    continue
-                                pred_coefs.append(coefs.get(col, 0.0))
-                            # Compute linear predictor
-                            if len(pred_coefs) > 0 and len(X_matrix) > 0:
-                                linear_pred[:, i] = intercept + np.dot(X_matrix, pred_coefs)
 
-                    # Compute probabilities using softmax
+                            coefs = coef_matrix[outcome]
+
+                            intercept = coefs.get("Intercept", 0.0)
+
+                            pred_coefs = []
+
+                            for col in X.columns:
+
+                                if col == "const":
+
+                                    continue
+
+                                pred_coefs.append(
+                                    coefs.get(col, 0.0)
+                                )
+
+                            if len(pred_coefs) > 0 and len(X_matrix) > 0:
+
+                                linear_pred[:, i] = (
+                                    intercept
+                                    + np.dot(X_matrix, pred_coefs)
+                                )
+
                     exp_vals = np.exp(linear_pred)
-                    row_sums = np.sum(exp_vals, axis=1, keepdims=True)
+
+                    row_sums = np.sum(
+                        exp_vals,
+                        axis=1,
+                        keepdims=True
+                    )
+
                     probabilities = exp_vals / row_sums
 
-        except Exception as exc:
+        except Exception:
 
             probabilities = None
-
 
         if (
             y_true is not None
@@ -1921,25 +2450,21 @@ def _run_regression_diagnostics_for_app(
 
                 diagnostics[
                     "classification"
-                ] = (
-                    multinomial_classification_diagnostics(
+                ] = multinomial_classification_diagnostics(
 
-                        y_true,
+                    y_true,
 
-                        probabilities,
+                    probabilities,
 
-                        class_labels=model_result.get(
-                            "outcome_categories"
-                        )
-
+                    class_labels=model_result.get(
+                        "outcome_categories"
                     )
+
                 )
 
             except Exception as exc:
 
-                diagnostics[
-                    "classification"
-                ] = {
+                diagnostics["classification"] = {
 
                     "success": False,
 
@@ -1948,49 +2473,11 @@ def _run_regression_diagnostics_for_app(
 
                 }
 
-
-        # ---------------------------------------------
-        # Model diagnostics
-        # ---------------------------------------------
-
         diagnostics[
             "model_diagnostics"
-        ] = {
-
-            "aic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "aic"
-                ),
-
-            "bic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "bic"
-                ),
-
-            "log_likelihood":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "log_likelihood"
-                ),
-
-            "mcfadden_pseudo_r_squared":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "mcfadden_pseudo_r_squared"
-                )
-
-        }
-
+        ] = _model_statistics_summary(
+            model_result
+        )
 
     # =================================================
     # ORDINAL LOGISTIC
@@ -1998,48 +2485,11 @@ def _run_regression_diagnostics_for_app(
 
     elif model_type == "ordinal_logistic":
 
-        # ---------------------------------------------
-        # Model diagnostics
-        # ---------------------------------------------
-
         diagnostics[
             "model_diagnostics"
-        ] = {
-
-            "aic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "aic"
-                ),
-
-            "bic":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "bic"
-                ),
-
-            "log_likelihood":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "log_likelihood"
-                ),
-
-            "mcfadden_pseudo_r_squared":
-                model_result.get(
-                    "statistics",
-                    {}
-                ).get(
-                    "mcfadden_pseudo_r_squared"
-                )
-
-        }
-
+        ] = _model_statistics_summary(
+            model_result
+        )
 
         # ---------------------------------------------
         # Proportional odds
@@ -2047,20 +2497,14 @@ def _run_regression_diagnostics_for_app(
 
         try:
 
-            # Get outcome column
-            outcome_column = "antibiogram_susceptibility"
-            if "dependent_variable" in model_result:
-                if model_result["dependent_variable"] == "age_group":
-                    outcome_column = "age_group"
-
-            ordered_categories = (
-
-                model_result.get(
-                    "category_order"
-                )
-
+            outcome_column = (
+                model_result.get("dependent_variable")
+                or ANTIBIOGRAM_OUTCOME
             )
 
+            ordered_categories = model_result.get(
+                "category_order"
+            )
 
             if not ordered_categories:
 
@@ -2073,7 +2517,6 @@ def _run_regression_diagnostics_for_app(
                     "susceptible"
 
                 ]
-
 
             diagnostics[
                 "proportional_odds"
@@ -2091,9 +2534,7 @@ def _run_regression_diagnostics_for_app(
 
         except Exception as exc:
 
-            diagnostics[
-                "proportional_odds"
-            ] = {
+            diagnostics["proportional_odds"] = {
 
                 "success": False,
 
@@ -2101,7 +2542,6 @@ def _run_regression_diagnostics_for_app(
                     str(exc)
 
             }
-
 
     return diagnostics
 
@@ -2122,7 +2562,6 @@ def regression_preview():
             silent=True
         )
 
-
         if not isinstance(
             data,
             dict
@@ -2136,7 +2575,6 @@ def regression_preview():
                     "Request body must be a JSON object."
 
             }), 400
-
 
         district = data.get(
             "district",
@@ -2158,8 +2596,12 @@ def regression_preview():
             []
         )
 
+        if isinstance(organisms, str):
+
+            organisms = [organisms] if organisms != "all" else []
+
         # =================================================
-        # READ MONTH-YEAR RANGE   (NEW)
+        # READ MONTH-YEAR RANGE
         # =================================================
 
         from_month = get_body_month(
@@ -2172,7 +2614,6 @@ def regression_preview():
             "to_month"
         )
 
-
         dependent_variable = data.get(
             "dependent_variable"
         )
@@ -2182,10 +2623,29 @@ def regression_preview():
             []
         )
 
-        antibiotic = data.get(
-            "antibiotic"
+        if isinstance(independent_variables, str):
+
+            independent_variables = [independent_variables]
+
+        # The preview shows ONE dataset, so the first
+        # selected antibiotic is used (if any).
+        antibiotics = _parse_antibiotics(
+            data
         )
 
+        antibiotic = antibiotics[0] if antibiotics else None
+
+        # =================================================
+        # CUSTOM AGE GROUPS
+        # =================================================
+
+        age_groups = data.get(
+            "age_groups"
+        )
+
+        if not isinstance(age_groups, list):
+
+            age_groups = None
 
         if not dependent_variable:
 
@@ -2197,7 +2657,6 @@ def regression_preview():
                     "Dependent variable is required."
 
             }), 400
-
 
         if not independent_variables:
 
@@ -2211,13 +2670,11 @@ def regression_preview():
 
             }), 400
 
-
         # =================================================
         # LOAD DATA
         # =================================================
 
         df = load_analysis_dataframe()
-
 
         if df is None or df.empty:
 
@@ -2229,7 +2686,6 @@ def regression_preview():
                     "No analysis data are available."
 
             }), 404
-
 
         # =================================================
         # APPLY FILTERS
@@ -2247,14 +2703,13 @@ def regression_preview():
 
             organisms=organisms,
 
-            from_month=from_month,       # NEW
+            from_month=from_month,
 
-            to_month=to_month            # NEW
+            to_month=to_month
 
         )
 
-
-        if filtered_df.empty:
+        if filtered_df is None or filtered_df.empty:
 
             return jsonify({
 
@@ -2265,17 +2720,13 @@ def regression_preview():
 
             }), 404
 
-
         # =================================================
         # DETERMINE MODEL
         # =================================================
 
-        model_information = (
-            determine_regression_model(
-                dependent_variable
-            )
+        model_information = determine_regression_model(
+            dependent_variable
         )
-
 
         if not model_information.get(
             "success",
@@ -2286,7 +2737,6 @@ def regression_preview():
                 model_information
             ), 400
 
-
         # =================================================
         # PREPARE
         # =================================================
@@ -2295,14 +2745,19 @@ def regression_preview():
 
             filtered_df,
 
-            dependent_variable,
+            dependent_variable=
+                dependent_variable,
 
-            independent_variables,
+            independent_variables=
+                independent_variables,
 
-            antibiotic
+            antibiotic=
+                antibiotic,
+
+            age_groups=
+                age_groups
 
         )
-
 
         if not prepared.get(
             "success",
@@ -2310,46 +2765,37 @@ def regression_preview():
         ):
 
             return jsonify(
-                prepared
+                _strip_dataframes(prepared)
             ), 400
-
 
         # =================================================
         # REMOVE DATAFRAME FROM JSON
         # =================================================
 
-        response = dict(
+        response = _strip_dataframes(
             prepared
         )
 
+        # For antibiogram, report the model chosen from the
+        # antibiotic's own observed categories.
+        response["model"] = (
 
-        response.pop(
-            "data",
-            None
+            prepared.get("model")
+
+            if dependent_variable == ANTIBIOGRAM_OUTCOME
+            and prepared.get("model")
+
+            else model_information["model"]
+
         )
 
+        response["dependent_variable"] = dependent_variable
 
-        response[
-            "model"
-        ] = model_information[
-            "model"
-        ]
-
-
-        response[
-            "dependent_variable"
-        ] = dependent_variable
-
-
-        response[
-            "independent_variables"
-        ] = independent_variables
-
+        response["independent_variables"] = independent_variables
 
         return jsonify(
             response
         ), 200
-
 
     except Exception as exc:
 
@@ -2364,7 +2810,6 @@ def regression_preview():
                 str(exc)
 
         }), 500
-
 
 # =====================================================
 # RUN APP

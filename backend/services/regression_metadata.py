@@ -1,59 +1,12 @@
 # =====================================================
 # REGRESSION METADATA
 # =====================================================
-#
-# Central metadata/configuration for the regression
-# framework.
-#
-# Supported models:
-#
-#     1. Binary Logistic Regression
-#     2. Multinomial Logistic Regression
-#     3. Ordinal Logistic Regression
-#
-# IMPORTANT
-# ---------
-# The USER does NOT select the regression model.
-#
-# The BACKEND automatically determines the appropriate
-# model from:
-#
-#     1. Dependent variable type
-#     2. Number of observed outcome categories
-#     3. Whether the outcome has a natural ordering
-#
-# General logic:
-#
-#     Binary outcome
-#           ↓
-#     Binary Logistic Regression
-#
-#     Nominal outcome with >2 categories
-#           ↓
-#     Multinomial Logistic Regression
-#
-#     Ordered outcome with >2 categories
-#           ↓
-#     Ordinal Logistic Regression
-#
-#     Ordered outcome with 2 categories
-#           ↓
-#     Binary Logistic Regression
-#
-# Actual data validation is performed by
-# regression_data.py.
-#
-# =====================================================
+
+import pandas as pd
 
 
 # =====================================================
 # INDEPENDENT VARIABLES
-# =====================================================
-#
-# These match the columns available in the analysis
-# dataframe after add_derived_columns() from
-# association_metadata.py has been applied.
-#
 # =====================================================
 
 INDEPENDENT_VARIABLES = [
@@ -95,13 +48,6 @@ DEPENDENT_VARIABLES = [
 # =====================================================
 # VARIABLE TYPES
 # =====================================================
-#
-# These describe the ORIGINAL predictor variables.
-#
-# Design-matrix encoding is handled by
-# regression_helpers.py / regression_data.py.
-#
-# =====================================================
 
 VARIABLE_TYPES = {
 
@@ -138,11 +84,6 @@ VARIABLE_TYPES = {
 
 OUTCOME_METADATA = {
 
-
-    # =================================================
-    # CULTURE RESULT
-    # =================================================
-
     "culture_result": {
 
         "outcome_type":
@@ -176,23 +117,6 @@ OUTCOME_METADATA = {
 
     },
 
-
-    # =================================================
-    # ORGANISM IDENTIFICATION
-    # =================================================
-    #
-    # Nominal outcome.
-    #
-    # Number of observed categories determines model:
-    #
-    #     2 categories
-    #         → Binary Logistic Regression
-    #
-    #     >2 categories
-    #         → Multinomial Logistic Regression
-    #
-    # =================================================
-
     "organism_identification": {
 
         "outcome_type":
@@ -220,31 +144,6 @@ OUTCOME_METADATA = {
             "Multinomial Logistic Regression"
 
     },
-
-
-    # =================================================
-    # ANTIBIOGRAM SUSCEPTIBILITY
-    # =================================================
-    #
-    # Natural ordering:
-    #
-    #     Resistant
-    #          <
-    #     Intermediate
-    #          <
-    #     Susceptible
-    #
-    # The actual antibiotic must be supplied separately.
-    #
-    # Model selection:
-    #
-    #     2 observed categories
-    #         → Binary Logistic Regression
-    #
-    #     >=3 observed ordered categories
-    #         → Ordinal Logistic Regression
-    #
-    # =================================================
 
     "antibiogram_susceptibility": {
 
@@ -351,17 +250,6 @@ MODEL_METADATA = {
 # =====================================================
 # PREDICTOR EXCLUSION MAP
 # =====================================================
-#
-# Prevents obvious outcome/predictor leakage.
-#
-# Currently:
-#
-#     No configured exclusions for the available
-#     dependent variables.
-#
-# This structure can be extended later.
-#
-# =====================================================
 
 EXCLUDED_PREDICTOR_MAP = {
 
@@ -390,11 +278,6 @@ MAX_INDEPENDENT_VARIABLES = len(
 def normalize_category(
     value
 ):
-    """
-    Converts an outcome category into a normalized
-    string representation.
-    """
-
     if value is None:
 
         return None
@@ -411,10 +294,6 @@ def normalize_category(
 def normalize_categories(
     categories
 ):
-    """
-    Normalizes and removes duplicate outcome categories.
-    """
-
     if categories is None:
 
         return []
@@ -454,14 +333,6 @@ def normalize_categories(
 def get_outcome_metadata(
     dependent_variable
 ):
-    """
-    Returns metadata for a dependent variable.
-
-    Returns
-    -------
-    dict or None
-    """
-
     if dependent_variable not in OUTCOME_METADATA:
 
         return None
@@ -502,10 +373,6 @@ def get_outcome_metadata(
 def get_variable_type(
     variable
 ):
-    """
-    Returns the configured type of a predictor.
-    """
-
     return VARIABLE_TYPES.get(
         variable
     )
@@ -518,10 +385,6 @@ def get_variable_type(
 def get_model_metadata(
     model
 ):
-    """
-    Returns metadata for a regression model.
-    """
-
     metadata = MODEL_METADATA.get(
         model
     )
@@ -536,61 +399,11 @@ def get_model_metadata(
 # =====================================================
 # AUTOMATIC MODEL SELECTION
 # =====================================================
-#
-# THIS IS THE IMPORTANT PART.
-#
-# The backend should call this function AFTER the
-# observed outcome categories have been obtained.
-#
-# Examples:
-#
-#     culture_result
-#     categories = ["negative", "positive"]
-#         → binary_logistic
-#
-#     organism_identification
-#     categories = ["ecoli", "klebsiella"]
-#         → binary_logistic
-#
-#     organism_identification
-#     categories = ["ecoli", "klebsiella", "pseudomonas"]
-#         → multinomial_logistic
-#
-#     antibiogram_susceptibility
-#     categories = ["resistant", "susceptible"]
-#         → binary_logistic
-#
-#     antibiogram_susceptibility
-#     categories = [
-#         "resistant",
-#         "intermediate",
-#         "susceptible"
-#     ]
-#         → ordinal_logistic
-#
-# =====================================================
 
 def get_automatic_model(
     dependent_variable,
     observed_categories=None
 ):
-    """
-    Automatically determines the appropriate regression
-    model.
-
-    Parameters
-    ----------
-    dependent_variable : str
-        Name of the dependent variable.
-
-    observed_categories : list, optional
-        Actual observed outcome categories after filtering.
-
-    Returns
-    -------
-    dict
-    """
-
     if dependent_variable not in OUTCOME_METADATA:
 
         return {
@@ -611,10 +424,6 @@ def get_automatic_model(
         dependent_variable
     ]
 
-
-    # -------------------------------------------------
-    # Categories are required for automatic selection
-    # -------------------------------------------------
 
     categories = normalize_categories(
         observed_categories
@@ -648,10 +457,6 @@ def get_automatic_model(
     ]
 
 
-    # =================================================
-    # BINARY OUTCOME
-    # =================================================
-
     if outcome_type == "binary":
 
         if len(categories) != 2:
@@ -679,10 +484,6 @@ def get_automatic_model(
         model = "binary_logistic"
 
 
-    # =================================================
-    # NOMINAL OUTCOME
-    # =================================================
-
     elif outcome_type == "nominal":
 
         if len(categories) == 2:
@@ -709,16 +510,9 @@ def get_automatic_model(
             }
 
 
-    # =================================================
-    # ORDINAL OUTCOME
-    # =================================================
-
     elif outcome_type == "ordinal":
 
         if len(categories) == 2:
-
-            # Two-category ordered outcome is treated
-            # as a binary outcome.
 
             model = "binary_logistic"
 
@@ -808,15 +602,6 @@ def get_automatic_model(
 def get_default_model(
     dependent_variable
 ):
-    """
-    Returns the default model configured in metadata.
-
-    This should NOT be used as the final model-selection
-    mechanism when observed categories are available.
-
-    It is mainly useful for frontend metadata/display.
-    """
-
     if dependent_variable not in OUTCOME_METADATA:
 
         return None
@@ -835,10 +620,6 @@ def get_default_model(
 def validate_independent_variables(
     variables
 ):
-    """
-    Validates the requested independent variables.
-    """
-
     if variables is None:
 
         return {
@@ -965,11 +746,6 @@ def validate_independent_variables(
 def get_excluded_predictors(
     dependent_variable
 ):
-    """
-    Returns predictors excluded for a particular
-    dependent variable.
-    """
-
     return EXCLUDED_PREDICTOR_MAP.get(
 
         dependent_variable,
@@ -986,11 +762,6 @@ def get_excluded_predictors(
 def get_available_predictors(
     dependent_variable
 ):
-    """
-    Returns predictors allowed for a given dependent
-    variable.
-    """
-
     if dependent_variable not in DEPENDENT_VARIABLES:
 
         return []
@@ -1018,24 +789,105 @@ def get_available_predictors(
 
 
 # =====================================================
-# GET REGRESSION OPTIONS
+# CUSTOM AGE GROUPS
+# (shared contract with association_metadata)
 # =====================================================
-#
-# This function provides metadata/options to the
-# frontend.
-#
-# IMPORTANT:
-# The frontend does NOT select the regression model.
-#
-# The frontend only selects:
-#
-#     - filters
-#     - dependent variable
-#     - independent variables
-#     - antibiotic when required
-#
-# The backend determines the actual model.
-#
+
+def apply_custom_age_groups(df, age_groups):
+    """
+    Replaces the default age_group column with user-defined bins.
+
+    age_groups: list of {"min": int, "max": int} dicts, or None.
+
+    Validation rules:
+        - at least 2 and at most 5 groups
+        - every group: 0 <= min < max
+        - every pair of consecutive groups must be contiguous:
+              group[i].max + 1 == group[i+1].min
+
+    Returns (df, error_message). error_message is None on success.
+    """
+
+    if not age_groups:
+        return df, None
+
+    if not isinstance(age_groups, list):
+        return df, "age_groups must be a list."
+
+    if len(age_groups) < 2:
+        return df, "At least 2 age groups are required."
+
+    if len(age_groups) > 5:
+        return df, "At most 5 age groups are allowed."
+
+    parsed = []
+
+    for index, group in enumerate(age_groups):
+
+        if not isinstance(group, dict):
+            return df, f"Age group {index + 1} must be an object."
+
+        try:
+            lo = int(group.get("min"))
+            hi = int(group.get("max"))
+        except (TypeError, ValueError):
+            return df, f"Age group {index + 1}: min and max must be integers."
+
+        if lo < 0:
+            return df, f"Age group {index + 1}: minimum cannot be negative."
+
+        if lo >= hi:
+            return df, f"Age group {index + 1}: minimum must be less than maximum."
+
+        parsed.append((lo, hi))
+
+    for index in range(len(parsed) - 1):
+
+        if parsed[index][1] + 1 != parsed[index + 1][0]:
+
+            return df, (
+                f"Age groups must be contiguous. "
+                f"Group {index + 1} ends at {parsed[index][1]}, "
+                f"but group {index + 2} starts at {parsed[index + 1][0]}."
+            )
+
+    df = df.copy()
+
+    if "age_years" not in df.columns:
+
+        df["age_years"] = pd.Series(
+            [float("nan")] * len(df),
+            index=df.index
+        )
+
+    else:
+
+        df["age_years"] = pd.to_numeric(
+            df["age_years"],
+            errors="coerce"
+        )
+
+    labels = [
+        f"{lo}-{hi}"
+        for lo, hi in parsed
+    ]
+
+    edges = [parsed[0][0] - 0.5]
+
+    for _, hi in parsed:
+        edges.append(hi + 0.5)
+
+    df["age_group"] = pd.cut(
+        df["age_years"],
+        bins=edges,
+        labels=labels
+    ).astype("string")
+
+    return df, None
+
+
+# =====================================================
+# GET REGRESSION OPTIONS
 # =====================================================
 
 def get_regression_options(
@@ -1043,18 +895,9 @@ def get_regression_options(
     block="all",
     sample_type="all",
     organisms=None,
-    from_month=None,      # <-- NEW
-    to_month=None         # <-- NEW
+    from_month=None,
+    to_month=None
 ):
-    """
-    Returns regression-related frontend options.
-    """
-
-    # =================================================
-    # ALWAYS start with a clean options dictionary
-    # that contains the required keys
-    # =================================================
-
     options = {
 
         "independent_variables":
@@ -1084,9 +927,6 @@ def get_regression_options(
 
     }
 
-    # =================================================
-    # POPULATE DEPENDENT VARIABLE METADATA
-    # =================================================
 
     for variable in DEPENDENT_VARIABLES:
 
@@ -1106,25 +946,11 @@ def get_regression_options(
             get_default_model(variable)
         )
 
-    # =================================================
-    # POPULATE MODEL METADATA
-    # =================================================
 
     for model, metadata in MODEL_METADATA.items():
 
         options["models"][model] = metadata.copy()
 
-    # =================================================
-    # TRY TO GET FILTER OPTIONS
-    # =================================================
-    #
-    # The filter options are supplementary and should
-    # NOT block the core regression metadata.
-    #
-    # If get_antibiogram_options() fails, we still
-    # return the core metadata.
-    #
-    # =================================================
 
     try:
 
@@ -1142,24 +968,28 @@ def get_regression_options(
 
             organisms=organisms,
 
-            from_month=from_month,      # <-- NEW
+            from_month=from_month,
 
-            to_month=to_month           # <-- NEW
+            to_month=to_month
 
         )
 
         if filter_options is not None:
 
-            # Only update with keys that don't conflict
-            # with our core metadata
-
             for key in [
-                "date_range",           # <-- NEW (month picker bounds)
+
+                "date_range",
+
                 "districts",
+
                 "blocks",
+
                 "sample_types",
+
                 "organisms",
+
                 "antibiotics"
+
             ]:
 
                 if key in filter_options:
@@ -1167,12 +997,8 @@ def get_regression_options(
                     options[key] = filter_options[key]
 
     except Exception:
-        # If filter options fail, we still have the
-        # core regression metadata.
+
         pass
 
-    # =================================================
-    # RETURN
-    # =================================================
 
     return options

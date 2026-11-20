@@ -952,7 +952,8 @@ def _fit_null_model(y):
 
 def run_binary_logistic_regression(
     df,
-    independent_variables
+    independent_variables,
+    prepared_data=None
 ):
     """
     Fits Binary Logistic Regression for:
@@ -969,6 +970,27 @@ def run_binary_logistic_regression(
         culture_result
                 ↓
         binary_logistic
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Original filtered dataframe. Used only if
+        prepared_data is not supplied.
+
+    independent_variables : list
+        List of predictor names.
+
+    prepared_data : dict, optional
+        Pre-prepared data from prepare_regression_data().
+        If provided and successful, skips the internal
+        call to prepare_culture_result_data().
+
+        This is important for the custom age-groups
+        feature: prepare_regression_data() applies
+        apply_custom_age_groups() to the dataframe,
+        and the resulting custom bins live on the
+        prepared dataframe. Re-preparing from the raw
+        df here would discard those custom bins.
     """
 
     # =================================================
@@ -1029,60 +1051,97 @@ def run_binary_logistic_regression(
     # PREPARE REGRESSION DATA
     # =================================================
     #
-    # regression_data.py performs:
+    # If prepared_data is provided and successful,
+    # use it directly. Otherwise, prepare from the
+    # raw dataframe.
     #
-    #     validation
-    #     cleaning
-    #     complete-case analysis
-    #     outcome validation
-    #
+    # This mirrors the behaviour of
+    # run_multinomial_logistic_regression() and
+    # run_ordinal_logistic_regression(), and ensures
+    # that any custom age-group bins applied inside
+    # prepare_regression_data() survive into the
+    # model-fitting step.
     # =================================================
 
-    prepared = (
-        prepare_culture_result_data(
-
-            df,
-
-            independent_variables
-
-        )
-    )
-
-
-    if not prepared.get(
-        "success",
-        False
+    if (
+        prepared_data is not None
+        and
+        prepared_data.get("success", False)
     ):
 
-        return {
+        regression_df = prepared_data["data"].copy()
 
-            "success": False,
+        prepared = prepared_data
 
-            "model":
-                MODEL_TYPE,
+        # Ensure the model type matches
+        if prepared.get("model") != MODEL_TYPE:
 
-            "model_name":
-                MODEL_NAME,
+            return {
 
-            "error":
-                prepared.get(
+                "success": False,
 
-                    "error",
+                "model":
+                    MODEL_TYPE,
 
-                    "Unable to prepare "
-                    "regression data."
+                "model_name":
+                    MODEL_NAME,
 
-                ),
+                "error":
+                    (
+                        f"Prepared data model mismatch: "
+                        f"expected {MODEL_TYPE}, "
+                        f"got {prepared.get('model')}"
+                    )
 
-            "details":
-                prepared
+            }
 
-        }
+    else:
+
+        prepared = (
+            prepare_culture_result_data(
+
+                df,
+
+                independent_variables
+
+            )
+        )
 
 
-    regression_df = prepared[
-        "data"
-    ]
+        if not prepared.get(
+            "success",
+            False
+        ):
+
+            return {
+
+                "success": False,
+
+                "model":
+                    MODEL_TYPE,
+
+                "model_name":
+                    MODEL_NAME,
+
+                "error":
+                    prepared.get(
+
+                        "error",
+
+                        "Unable to prepare "
+                        "regression data."
+
+                    ),
+
+                "details":
+                    prepared
+
+            }
+
+
+        regression_df = prepared[
+            "data"
+        ]
 
 
     # =================================================

@@ -24,6 +24,24 @@
 #     - provide a consistent API structure
 #     - generate compact model summaries
 #
+# -----------------------------------------------------
+# FIX (z-score not showing)
+# -----------------------------------------------------
+#
+# format_coefficient_table() used to rebuild each
+# coefficient row from a fixed list of keys. That:
+#
+#   - renamed "z_value" to "test_statistic", but the
+#     frontend reads "z_value" -> z column showed "-"
+#   - dropped "outcome_category" and
+#     "relative_risk_ratio" (needed by the multinomial
+#     table)
+#
+# Rows are now copied from the original coefficient
+# dictionary, so NO key is lost. "z_value",
+# "test_statistic" and "significance" are then set on
+# top. Nothing else in this module changed.
+#
 # =====================================================
 
 import numpy as np
@@ -60,100 +78,55 @@ def _safe_value(value):
     """
 
     if value is None:
+
         return None
 
-    # -------------------------------------------------
     # NumPy scalar
-    # -------------------------------------------------
-
     if isinstance(value, np.generic):
 
-        return _safe_value(
-            value.item()
-        )
+        return _safe_value(value.item())
 
-
-    # -------------------------------------------------
     # NumPy array
-    # -------------------------------------------------
-
     if isinstance(value, np.ndarray):
 
-        return [
+        return [_safe_value(item) for item in value.tolist()]
 
-            _safe_value(item)
-
-            for item in value.tolist()
-
-        ]
-
-
-    # -------------------------------------------------
-    # Boolean
-    # -------------------------------------------------
-
+    # Boolean (must be checked before int)
     if isinstance(value, bool):
+
         return value
 
-
-    # -------------------------------------------------
     # Integer
-    # -------------------------------------------------
-
     if isinstance(value, int):
+
         return int(value)
 
-
-    # -------------------------------------------------
     # Float
-    # -------------------------------------------------
-
     if isinstance(value, float):
 
         if not np.isfinite(value):
+
             return None
 
         return float(value)
 
-
-    # -------------------------------------------------
     # Dictionary
-    # -------------------------------------------------
-
     if isinstance(value, dict):
 
         return {
 
-            str(key):
-                _safe_value(val)
+            str(key): _safe_value(val)
 
             for key, val in value.items()
 
         }
 
-
-    # -------------------------------------------------
     # List / Tuple / Set
-    # -------------------------------------------------
+    if isinstance(value, (list, tuple, set)):
 
-    if isinstance(
-        value,
-        (list, tuple, set)
-    ):
+        return [_safe_value(item) for item in value]
 
-        return [
-
-            _safe_value(item)
-
-            for item in value
-
-        ]
-
-
-    # -------------------------------------------------
     # Pandas-like scalar
-    # -------------------------------------------------
-
     try:
 
         if hasattr(value, "item"):
@@ -162,28 +135,22 @@ def _safe_value(value):
 
             if converted is not value:
 
-                return _safe_value(
-                    converted
-                )
+                return _safe_value(converted)
 
     except Exception:
 
         pass
 
-
-    # -------------------------------------------------
     # Missing-value fallback
-    # -------------------------------------------------
-
     try:
 
         if value is np.nan:
+
             return None
 
     except Exception:
 
         pass
-
 
     return value
 
@@ -192,9 +159,7 @@ def _safe_value(value):
 # MODEL TYPE VALIDATION
 # =====================================================
 
-def validate_model_type(
-    model_type
-):
+def validate_model_type(model_type):
 
     return model_type in MODEL_NAMES
 
@@ -211,11 +176,9 @@ def empty_regression_result(
 
     result = {
 
-        "success":
-            False,
+        "success": False,
 
-        "model":
-            model_type,
+        "model": model_type,
 
         "model_name":
             MODEL_NAMES.get(
@@ -223,24 +186,15 @@ def empty_regression_result(
                 str(model_type)
             ),
 
-        "error":
-            str(error)
+        "error": str(error)
 
     }
 
-
     if details is not None:
 
-        result[
-            "details"
-        ] = _safe_value(
-            details
-        )
+        result["details"] = _safe_value(details)
 
-
-    return _safe_value(
-        result
-    )
+    return _safe_value(result)
 
 
 # =====================================================
@@ -261,9 +215,7 @@ def create_regression_result(
     # VALIDATE MODEL TYPE
     # =================================================
 
-    if not validate_model_type(
-        model_type
-    ):
+    if not validate_model_type(model_type):
 
         return empty_regression_result(
 
@@ -272,7 +224,6 @@ def create_regression_result(
             "Invalid regression model type."
 
         )
-
 
     # =================================================
     # VALIDATE MODEL RESULT
@@ -288,11 +239,7 @@ def create_regression_result(
 
         )
 
-
-    if not isinstance(
-        model_result,
-        dict
-    ):
+    if not isinstance(model_result, dict):
 
         return empty_regression_result(
 
@@ -302,28 +249,19 @@ def create_regression_result(
 
         )
 
-
     # =================================================
     # MODEL FAILED
     # =================================================
 
-    if not model_result.get(
-        "success",
-        False
-    ):
+    if not model_result.get("success", False):
 
         response = {
 
-            "success":
-                False,
+            "success": False,
 
-            "model":
-                model_type,
+            "model": model_type,
 
-            "model_name":
-                MODEL_NAMES[
-                    model_type
-                ],
+            "model_name": MODEL_NAMES[model_type],
 
             "error":
                 model_result.get(
@@ -333,29 +271,17 @@ def create_regression_result(
 
         }
 
-
         if "details" in model_result:
 
-            response[
-                "details"
-            ] = model_result.get(
-                "details"
-            )
-
+            response["details"] = model_result.get("details")
 
         if "possible_causes" in model_result:
 
-            response[
-                "possible_causes"
-            ] = model_result.get(
-                "possible_causes"
+            response["possible_causes"] = (
+                model_result.get("possible_causes")
             )
 
-
-        return _safe_value(
-            response
-        )
-
+        return _safe_value(response)
 
     # =================================================
     # BASIC RESPONSE
@@ -363,19 +289,13 @@ def create_regression_result(
 
     response = {
 
-        "success":
-            True,
+        "success": True,
 
-        "model":
-            model_type,
+        "model": model_type,
 
-        "model_name":
-            MODEL_NAMES[
-                model_type
-            ]
+        "model_name": MODEL_NAMES[model_type]
 
     }
-
 
     # =================================================
     # REQUEST METADATA
@@ -383,12 +303,7 @@ def create_regression_result(
 
     if metadata is not None:
 
-        response[
-            "request"
-        ] = _safe_value(
-            metadata
-        )
-
+        response["request"] = _safe_value(metadata)
 
     # =================================================
     # DEPENDENT VARIABLE
@@ -396,16 +311,9 @@ def create_regression_result(
 
     if "dependent_variable" in model_result:
 
-        response[
-            "dependent_variable"
-        ] = _safe_value(
-
-            model_result[
-                "dependent_variable"
-            ]
-
+        response["dependent_variable"] = _safe_value(
+            model_result["dependent_variable"]
         )
-
 
     # =================================================
     # INDEPENDENT VARIABLES
@@ -413,23 +321,15 @@ def create_regression_result(
 
     if "independent_variables" in model_result:
 
-        response[
-            "independent_variables"
-        ] = _safe_value(
-
-            model_result[
-                "independent_variables"
-            ]
-
+        response["independent_variables"] = _safe_value(
+            model_result["independent_variables"]
         )
-
 
     # =================================================
     # SAMPLE INFORMATION
     # =================================================
 
     sample_information = {}
-
 
     sample_keys = [
 
@@ -441,33 +341,23 @@ def create_regression_result(
 
     ]
 
-
     for key in sample_keys:
 
         if key in model_result:
 
-            sample_information[
-                key
-            ] = model_result[
-                key
-            ]
-
+            sample_information[key] = model_result[key]
 
     if sample_information:
 
-        response[
-            "sample_information"
-        ] = _safe_value(
+        response["sample_information"] = _safe_value(
             sample_information
         )
-
 
     # =================================================
     # OUTCOME INFORMATION
     # =================================================
 
     outcome_information = {}
-
 
     outcome_keys = [
 
@@ -480,26 +370,17 @@ def create_regression_result(
 
     ]
 
-
     for key in outcome_keys:
 
         if key in model_result:
 
-            outcome_information[
-                key
-            ] = model_result[
-                key
-            ]
-
+            outcome_information[key] = model_result[key]
 
     if outcome_information:
 
-        response[
-            "outcome_information"
-        ] = _safe_value(
+        response["outcome_information"] = _safe_value(
             outcome_information
         )
-
 
     # =================================================
     # REFERENCE CATEGORIES
@@ -507,16 +388,9 @@ def create_regression_result(
 
     if "reference_categories" in model_result:
 
-        response[
-            "reference_categories"
-        ] = _safe_value(
-
-            model_result[
-                "reference_categories"
-            ]
-
+        response["reference_categories"] = _safe_value(
+            model_result["reference_categories"]
         )
-
 
     # =================================================
     # MODEL STATUS
@@ -524,147 +398,75 @@ def create_regression_result(
 
     model_status = {}
 
-
     if "converged" in model_result:
 
-        model_status[
-            "converged"
-        ] = model_result[
-            "converged"
-        ]
-
+        model_status["converged"] = model_result["converged"]
 
     if model_status:
 
-        response[
-            "model_status"
-        ] = _safe_value(
-            model_status
-        )
-
+        response["model_status"] = _safe_value(model_status)
 
     # =================================================
     # COEFFICIENTS
     # =================================================
 
-    response[
-        "coefficients"
-    ] = _safe_value(
-
-        model_result.get(
-            "coefficients",
-            []
-        )
-
+    response["coefficients"] = _safe_value(
+        model_result.get("coefficients", [])
     )
-
 
     # =================================================
     # THRESHOLDS
     # =================================================
 
-    response[
-        "thresholds"
-    ] = _safe_value(
-
-        model_result.get(
-            "thresholds",
-            []
-        )
-
+    response["thresholds"] = _safe_value(
+        model_result.get("thresholds", [])
     )
-
 
     # =================================================
     # MODEL STATISTICS
     # =================================================
 
-    response[
-        "statistics"
-    ] = _safe_value(
-
-        model_result.get(
-            "statistics",
-            {}
-        )
-
+    response["statistics"] = _safe_value(
+        model_result.get("statistics", {})
     )
-
 
     # =================================================
     # VIF
-    # =================================================
-
     #
     # Diagnostics take priority.
-    #
+    # =================================================
 
     if diagnostics is not None:
 
-        vif_result = diagnostics.get(
-            "vif"
-        )
-
+        vif_result = diagnostics.get("vif")
 
         if vif_result is not None:
 
-            # -----------------------------------------
-            # If diagnostics contains:
-            #
+            # If diagnostics contains
             # {"success": True, "vif": [...]}
-            #
             # expose the actual VIF list.
-            # -----------------------------------------
 
-            if isinstance(
-                vif_result,
-                dict
-            ) and "vif" in vif_result:
+            if isinstance(vif_result, dict) and "vif" in vif_result:
 
-                response[
-                    "vif"
-                ] = _safe_value(
-                    vif_result.get(
-                        "vif",
-                        []
-                    )
+                response["vif"] = _safe_value(
+                    vif_result.get("vif", [])
                 )
 
             else:
 
-                response[
-                    "vif"
-                ] = _safe_value(
-                    vif_result
-                )
-
+                response["vif"] = _safe_value(vif_result)
 
         else:
 
-            response[
-                "vif"
-            ] = _safe_value(
-
-                model_result.get(
-                    "vif",
-                    []
-                )
-
+            response["vif"] = _safe_value(
+                model_result.get("vif", [])
             )
 
     else:
 
-        response[
-            "vif"
-        ] = _safe_value(
-
-            model_result.get(
-                "vif",
-                []
-            )
-
+        response["vif"] = _safe_value(
+            model_result.get("vif", [])
         )
-
 
     # =================================================
     # OTHER DIAGNOSTICS
@@ -672,30 +474,16 @@ def create_regression_result(
 
     if diagnostics is not None:
 
-        diagnostic_copy = dict(
-            diagnostics
-        )
-
+        diagnostic_copy = dict(diagnostics)
 
         # VIF is exposed separately.
-        diagnostic_copy.pop(
-            "vif",
-            None
-        )
+        diagnostic_copy.pop("vif", None)
 
-
-        response[
-            "diagnostics"
-        ] = _safe_value(
-            diagnostic_copy
-        )
+        response["diagnostics"] = _safe_value(diagnostic_copy)
 
     else:
 
-        response[
-            "diagnostics"
-        ] = {}
-
+        response["diagnostics"] = {}
 
     # =================================================
     # RAW MODEL INFORMATION
@@ -703,24 +491,15 @@ def create_regression_result(
 
     if "raw_model_information" in model_result:
 
-        response[
-            "raw_model_information"
-        ] = _safe_value(
-
-            model_result[
-                "raw_model_information"
-            ]
-
+        response["raw_model_information"] = _safe_value(
+            model_result["raw_model_information"]
         )
-
 
     # =================================================
     # FINAL JSON-SAFE RESPONSE
     # =================================================
 
-    return _safe_value(
-        response
-    )
+    return _safe_value(response)
 
 
 # =====================================================
@@ -741,52 +520,27 @@ def add_diagnostics(
 
         regression_result = {}
 
-
     if diagnostics is None:
 
-        return _safe_value(
-            regression_result
-        )
+        return _safe_value(regression_result)
 
+    existing = regression_result.get("diagnostics", {})
 
-    existing = regression_result.get(
-        "diagnostics",
-        {}
-    )
-
-
-    if not isinstance(
-        existing,
-        dict
-    ):
+    if not isinstance(existing, dict):
 
         existing = {}
 
+    if isinstance(diagnostics, dict):
 
-    if isinstance(
-        diagnostics,
-        dict
-    ):
-
-        existing.update(
-            diagnostics
-        )
+        existing.update(diagnostics)
 
     else:
 
-        existing[
-            "additional"
-        ] = diagnostics
+        existing["additional"] = diagnostics
 
+    regression_result["diagnostics"] = existing
 
-    regression_result[
-        "diagnostics"
-    ] = existing
-
-
-    return _safe_value(
-        regression_result
-    )
+    return _safe_value(regression_result)
 
 
 # =====================================================
@@ -802,17 +556,9 @@ def add_model_statistics(
 
         regression_result = {}
 
+    regression_result["statistics"] = _safe_value(statistics)
 
-    regression_result[
-        "statistics"
-    ] = _safe_value(
-        statistics
-    )
-
-
-    return _safe_value(
-        regression_result
-    )
+    return _safe_value(regression_result)
 
 
 # =====================================================
@@ -828,17 +574,11 @@ def add_coefficients(
 
         regression_result = {}
 
-
-    regression_result[
-        "coefficients"
-    ] = _safe_value(
+    regression_result["coefficients"] = _safe_value(
         coefficients
     )
 
-
-    return _safe_value(
-        regression_result
-    )
+    return _safe_value(regression_result)
 
 
 # =====================================================
@@ -854,40 +594,23 @@ def add_vif(
 
         regression_result = {}
 
-
-    # If complete VIF diagnostic object is supplied,
+    # If the complete VIF diagnostic object is supplied,
     # extract the actual VIF list.
 
-    if isinstance(
-        vif,
-        dict
-    ) and "vif" in vif:
+    if isinstance(vif, dict) and "vif" in vif:
 
-        vif = vif.get(
-            "vif",
-            []
-        )
+        vif = vif.get("vif", [])
 
+    regression_result["vif"] = _safe_value(vif)
 
-    regression_result[
-        "vif"
-    ] = _safe_value(
-        vif
-    )
-
-
-    return _safe_value(
-        regression_result
-    )
+    return _safe_value(regression_result)
 
 
 # =====================================================
 # REGRESSION SUMMARY
 # =====================================================
 
-def create_regression_summary(
-    regression_result
-):
+def create_regression_summary(regression_result):
     """
     Creates a compact summary suitable for the frontend.
     """
@@ -895,71 +618,41 @@ def create_regression_summary(
     if (
         regression_result is None
         or
-        not regression_result.get(
-            "success",
-            False
-        )
+        not regression_result.get("success", False)
     ):
 
         return {
 
-            "success":
-                False,
+            "success": False,
 
-            "error":
-                "Regression result is unavailable."
+            "error": "Regression result is unavailable."
 
         }
 
-
-    sample_information = (
-        regression_result.get(
-            "sample_information",
-            {}
-        )
+    sample_information = regression_result.get(
+        "sample_information",
+        {}
     )
 
+    statistics = regression_result.get("statistics", {})
 
-    statistics = (
-        regression_result.get(
-            "statistics",
-            {}
-        )
-    )
-
-
-    model_status = (
-        regression_result.get(
-            "model_status",
-            {}
-        )
-    )
-
+    model_status = regression_result.get("model_status", {})
 
     summary = {
 
         "model":
-            regression_result.get(
-                "model_name"
-            ),
+            regression_result.get("model_name"),
 
         "dependent_variable":
-            regression_result.get(
-                "dependent_variable"
-            ),
+            regression_result.get("dependent_variable"),
 
         "n":
-            sample_information.get(
-                "n"
-            ),
+            sample_information.get("n"),
 
         "number_predictors":
-            sample_information.get(
-                "number_predictors"
-            )
+            sample_information.get("number_predictors")
 
     }
-
 
     # =================================================
     # MODEL STATISTICS
@@ -978,17 +671,11 @@ def create_regression_summary(
 
     ]
 
-
     for key in statistic_keys:
 
         if key in statistics:
 
-            summary[
-                key
-            ] = statistics[
-                key
-            ]
-
+            summary[key] = statistics[key]
 
     # =================================================
     # CONVERGENCE
@@ -996,16 +683,9 @@ def create_regression_summary(
 
     if "converged" in model_status:
 
-        summary[
-            "converged"
-        ] = model_status[
-            "converged"
-        ]
+        summary["converged"] = model_status["converged"]
 
-
-    return _safe_value(
-        summary
-    )
+    return _safe_value(summary)
 
 
 # =====================================================
@@ -1027,102 +707,60 @@ def get_significant_predictors(
     if (
         regression_result is None
         or
-        not regression_result.get(
-            "success",
-            False
-        )
+        not regression_result.get("success", False)
     ):
 
         return []
 
+    coefficients = regression_result.get("coefficients", [])
 
-    coefficients = (
-        regression_result.get(
-            "coefficients",
-            []
-        )
-    )
-
-
-    if not isinstance(
-        coefficients,
-        list
-    ):
+    if not isinstance(coefficients, list):
 
         return []
-
 
     try:
 
         alpha = float(alpha)
 
-    except (
-        TypeError,
-        ValueError
-    ):
+    except (TypeError, ValueError):
 
         alpha = 0.05
-
 
     if not np.isfinite(alpha):
 
         alpha = 0.05
 
-
     significant = []
-
 
     for coefficient in coefficients:
 
-        if not isinstance(
-            coefficient,
-            dict
-        ):
+        if not isinstance(coefficient, dict):
 
             continue
 
-
-        p_value = coefficient.get(
-            "p_value"
-        )
-
+        p_value = coefficient.get("p_value")
 
         if p_value is None:
 
             continue
 
-
         try:
 
-            p_value = float(
-                p_value
-            )
+            p_value = float(p_value)
 
-        except (
-            TypeError,
-            ValueError
-        ):
+        except (TypeError, ValueError):
 
             continue
 
-
-        if not np.isfinite(
-            p_value
-        ):
+        if not np.isfinite(p_value):
 
             continue
-
 
         if p_value < alpha:
 
-            significant.append(
-                coefficient
-            )
+            significant.append(coefficient)
 
-
-    return _safe_value(
-        significant
-    )
+    return _safe_value(significant)
 
 
 # =====================================================
@@ -1138,58 +776,40 @@ def add_significance_summary(
 
         regression_result = {}
 
-
     try:
 
         alpha = float(alpha)
 
-    except (
-        TypeError,
-        ValueError
-    ):
+    except (TypeError, ValueError):
 
         alpha = 0.05
-
 
     if not np.isfinite(alpha):
 
         alpha = 0.05
 
+    significant = get_significant_predictors(
 
-    significant = (
-        get_significant_predictors(
+        regression_result,
 
-            regression_result,
+        alpha=alpha
 
-            alpha=alpha
-
-        )
     )
 
-
-    regression_result[
-        "significance"
-    ] = {
+    regression_result["significance"] = {
 
         "alpha":
-            _safe_value(
-                alpha
-            ),
+            _safe_value(alpha),
 
         "number_significant_predictors":
-            len(
-                significant
-            ),
+            len(significant),
 
         "significant_predictors":
             significant
 
     }
 
-
-    return _safe_value(
-        regression_result
-    )
+    return _safe_value(regression_result)
 
 
 # =====================================================
@@ -1205,11 +825,9 @@ def format_regression_error(
 
     response = {
 
-        "success":
-            False,
+        "success": False,
 
-        "model":
-            model_type,
+        "model": model_type,
 
         "model_name":
             MODEL_NAMES.get(
@@ -1217,48 +835,33 @@ def format_regression_error(
                 model_type
             ),
 
-        "error":
-            str(error)
+        "error": str(error)
 
     }
 
-
     if details is not None:
 
-        response[
-            "details"
-        ] = _safe_value(
-            details
-        )
-
+        response["details"] = _safe_value(details)
 
     if possible_causes is not None:
 
         try:
 
-            response[
-                "possible_causes"
-            ] = [
+            response["possible_causes"] = [
 
                 str(cause)
 
-                for cause
-                in possible_causes
+                for cause in possible_causes
 
             ]
 
         except Exception:
 
-            response[
-                "possible_causes"
-            ] = [
+            response["possible_causes"] = [
                 str(possible_causes)
             ]
 
-
-    return _safe_value(
-        response
-    )
+    return _safe_value(response)
 
 
 # =====================================================
@@ -1278,15 +881,15 @@ def finalize_regression_response(
     Pipeline:
 
         model result
-             ↓
+             |
         standardized result
-             ↓
+             |
         diagnostics
-             ↓
+             |
         significance summary
-             ↓
+             |
         compact summary
-             ↓
+             |
         JSON-safe response
     """
 
@@ -1306,20 +909,13 @@ def finalize_regression_response(
 
     )
 
-
     # =================================================
     # STOP IF MODEL FAILED
     # =================================================
 
-    if not response.get(
-        "success",
-        False
-    ):
+    if not response.get("success", False):
 
-        return _safe_value(
-            response
-        )
-
+        return _safe_value(response)
 
     # =================================================
     # SIGNIFICANCE
@@ -1333,269 +929,146 @@ def finalize_regression_response(
 
     )
 
-
     # =================================================
     # COMPACT SUMMARY
     # =================================================
 
-    response[
-        "summary"
-    ] = create_regression_summary(
-        response
-    )
-
+    response["summary"] = create_regression_summary(response)
 
     # =================================================
     # FINAL JSON CONVERSION
     # =================================================
 
-    return _safe_value(
-        response
-    )
+    return _safe_value(response)
 
 
 # =====================================================
 # FRONTEND COEFFICIENT TABLE
 # =====================================================
 
-def format_coefficient_table(
-    regression_result
-):
+def _significance_marker(p_value):
+    """
+    Returns "***", "**", "*" or "" for a p-value.
+    """
+
+    try:
+
+        numeric_p = float(p_value) if p_value is not None else None
+
+    except (TypeError, ValueError):
+
+        numeric_p = None
+
+    if numeric_p is None or not np.isfinite(numeric_p):
+
+        return ""
+
+    if numeric_p < 0.001:
+
+        return "***"
+
+    if numeric_p < 0.01:
+
+        return "**"
+
+    if numeric_p < 0.05:
+
+        return "*"
+
+    return ""
+
+
+def format_coefficient_table(regression_result):
     """
     Converts model coefficients into a consistent
     frontend-friendly table.
 
-    Output:
+    IMPORTANT
+    ---------
+    Each output row is a COPY of the original coefficient
+    dictionary, so every key produced by the model modules
+    is preserved. This includes:
 
         variable
         coefficient
         standard_error
-        test_statistic
+        z_value              <- read by the frontend
         p_value
         odds_ratio
         ci_lower
         ci_upper
-        significance
+        outcome_category     <- multinomial
+        relative_risk_ratio  <- multinomial
+
+    On top of that, these keys are set:
+
+        z_value          (falls back to t_value /
+                          test_statistic when missing)
+        test_statistic   (same value, kept for
+                          compatibility)
+        significance     ("***", "**", "*" or "")
     """
 
     if (
         regression_result is None
         or
-        not regression_result.get(
-            "success",
-            False
-        )
+        not regression_result.get("success", False)
     ):
 
         return []
 
+    coefficients = regression_result.get("coefficients", [])
 
-    coefficients = (
-        regression_result.get(
-            "coefficients",
-            []
-        )
-    )
-
-
-    if not isinstance(
-        coefficients,
-        list
-    ):
+    if not isinstance(coefficients, list):
 
         return []
-
 
     table = []
 
-
     for coefficient in coefficients:
 
-        if not isinstance(
-            coefficient,
-            dict
-        ):
+        if not isinstance(coefficient, dict):
 
             continue
-
 
         # ---------------------------------------------
         # Test statistic
         # ---------------------------------------------
 
-        test_statistic = (
-            coefficient.get(
-                "z_value"
-            )
-        )
-
+        test_statistic = coefficient.get("z_value")
 
         if test_statistic is None:
 
-            test_statistic = (
-                coefficient.get(
-                    "t_value"
-                )
-            )
-
+            test_statistic = coefficient.get("t_value")
 
         if test_statistic is None:
 
-            test_statistic = (
-                coefficient.get(
-                    "test_statistic"
-                )
-            )
-
+            test_statistic = coefficient.get("test_statistic")
 
         # ---------------------------------------------
-        # P-value
+        # Row: copy everything, then set the shared keys
         # ---------------------------------------------
 
-        p_value = coefficient.get(
-            "p_value"
+        row = dict(coefficient)
+
+        row["z_value"] = test_statistic
+
+        row["test_statistic"] = test_statistic
+
+        row["significance"] = _significance_marker(
+            coefficient.get("p_value")
         )
 
+        table.append(row)
 
-        numeric_p = None
-
-
-        try:
-
-            if p_value is not None:
-
-                numeric_p = float(
-                    p_value
-                )
-
-        except (
-            TypeError,
-            ValueError
-        ):
-
-            numeric_p = None
-
-
-        # ---------------------------------------------
-        # Significance
-        # ---------------------------------------------
-
-        if (
-
-            numeric_p is not None
-
-            and
-
-            np.isfinite(numeric_p)
-
-            and
-
-            numeric_p < 0.001
-
-        ):
-
-            significance = "***"
-
-
-        elif (
-
-            numeric_p is not None
-
-            and
-
-            np.isfinite(numeric_p)
-
-            and
-
-            numeric_p < 0.01
-
-        ):
-
-            significance = "**"
-
-
-        elif (
-
-            numeric_p is not None
-
-            and
-
-            np.isfinite(numeric_p)
-
-            and
-
-            numeric_p < 0.05
-
-        ):
-
-            significance = "*"
-
-
-        else:
-
-            significance = ""
-
-
-        # ---------------------------------------------
-        # Row
-        # ---------------------------------------------
-
-        table.append({
-
-            "variable":
-                coefficient.get(
-                    "variable"
-                ),
-
-            "coefficient":
-                coefficient.get(
-                    "coefficient"
-                ),
-
-            "standard_error":
-                coefficient.get(
-                    "standard_error"
-                ),
-
-            "test_statistic":
-                test_statistic,
-
-            "p_value":
-                p_value,
-
-            "odds_ratio":
-                coefficient.get(
-                    "odds_ratio"
-                ),
-
-            "ci_lower":
-                coefficient.get(
-                    "ci_lower"
-                ),
-
-            "ci_upper":
-                coefficient.get(
-                    "ci_upper"
-                ),
-
-            "significance":
-                significance
-
-        })
-
-
-    return _safe_value(
-        table
-    )
+    return _safe_value(table)
 
 
 # =====================================================
 # FRONTEND PAYLOAD
 # =====================================================
 
-def build_frontend_payload(
-    regression_result
-):
+def build_frontend_payload(regression_result):
     """
     Creates the clean payload consumed by the frontend.
 
@@ -1610,16 +1083,12 @@ def build_frontend_payload(
     if (
         regression_result is None
         or
-        not regression_result.get(
-            "success",
-            False
-        )
+        not regression_result.get("success", False)
     ):
 
         return {
 
-            "success":
-                False,
+            "success": False,
 
             "error":
                 (
@@ -1634,149 +1103,90 @@ def build_frontend_payload(
 
         }
 
-
     # =================================================
     # COMMON PAYLOAD
     # =================================================
 
     payload = {
 
-        "success":
-            True,
+        "success": True,
 
         "model":
-            regression_result.get(
-                "model"
-            ),
+            regression_result.get("model"),
 
         "model_name":
-            regression_result.get(
-                "model_name"
-            ),
+            regression_result.get("model_name"),
 
         "dependent_variable":
-            regression_result.get(
-                "dependent_variable"
-            ),
+            regression_result.get("dependent_variable"),
 
         "independent_variables":
-            regression_result.get(
-                "independent_variables",
-                []
-            ),
+            regression_result.get("independent_variables", []),
 
         "sample_information":
-            regression_result.get(
-                "sample_information",
-                {}
-            ),
+            regression_result.get("sample_information", {}),
 
         "outcome_information":
-            regression_result.get(
-                "outcome_information",
-                {}
-            ),
+            regression_result.get("outcome_information", {}),
 
         "reference_categories":
-            regression_result.get(
-                "reference_categories",
-                {}
-            ),
+            regression_result.get("reference_categories", {}),
 
         "model_status":
-            regression_result.get(
-                "model_status",
-                {}
-            ),
+            regression_result.get("model_status", {}),
 
         "summary":
-            regression_result.get(
-                "summary",
-                {}
-            ),
+            regression_result.get("summary", {}),
 
         "coefficients":
-            format_coefficient_table(
-                regression_result
-            ),
+            format_coefficient_table(regression_result),
 
         "thresholds":
-            regression_result.get(
-                "thresholds",
-                []
-            ),
+            regression_result.get("thresholds", []),
 
         "statistics":
-            regression_result.get(
-                "statistics",
-                {}
-            ),
+            regression_result.get("statistics", {}),
 
         "diagnostics":
-            regression_result.get(
-                "diagnostics",
-                {}
-            ),
+            regression_result.get("diagnostics", {}),
 
         "vif":
-            regression_result.get(
-                "vif",
-                []
-            ),
+            regression_result.get("vif", []),
 
         "significance":
-            regression_result.get(
-                "significance",
-                {}
-
-            )
+            regression_result.get("significance", {})
 
     }
-
 
     # =================================================
     # MODEL-SPECIFIC DIAGNOSTICS
     # =================================================
 
-    model = regression_result.get(
-        "model"
-    )
-
+    model = regression_result.get("model")
 
     if model == "binary_logistic":
 
-        payload[
-            "binary_diagnostics"
-        ] = regression_result.get(
+        payload["binary_diagnostics"] = regression_result.get(
             "diagnostics",
             {}
         )
-
 
     elif model == "multinomial_logistic":
 
-        payload[
-            "multinomial_diagnostics"
-        ] = regression_result.get(
+        payload["multinomial_diagnostics"] = regression_result.get(
             "diagnostics",
             {}
         )
-
 
     elif model == "ordinal_logistic":
 
-        payload[
-            "ordinal_diagnostics"
-        ] = regression_result.get(
+        payload["ordinal_diagnostics"] = regression_result.get(
             "diagnostics",
             {}
         )
-
 
     # =================================================
     # FINAL JSON-SAFE PAYLOAD
     # =================================================
 
-    return _safe_value(
-        payload
-    )
+    return _safe_value(payload)

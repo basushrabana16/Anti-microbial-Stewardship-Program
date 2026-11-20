@@ -33,7 +33,7 @@ const Regression = {
 
         dependent: null,
 
-        antibiotic: null
+        antibiotics: []
 
     },
 
@@ -47,7 +47,21 @@ const Regression = {
 
     },
 
-    lastResult: null
+    lastResult: null,
+
+    /* ---------------------------------------------
+       Custom age groups (only used when
+       "age_group" is among the selected
+       independent variables).
+    --------------------------------------------- */
+
+    customAgeGroups: null,
+
+    ageGroupRows: [],
+
+    AGE_GROUPS_MIN: 2,
+
+    AGE_GROUPS_MAX: 5
 
 };
 
@@ -69,6 +83,9 @@ Regression.initialize = function () {
     if (antibioticGroup) {
         antibioticGroup.style.display = "none";
     }
+
+    // Ensure custom age-group UI starts in the correct state
+    this.updateAgeGroupUI();
 
 };
 
@@ -217,6 +234,38 @@ Regression.cacheElements = function () {
     this.reportGeneratedValue =
         document.getElementById("reportGeneratedValue");
 
+    /* ---------------------------------------------
+       Custom age-group UI elements
+    --------------------------------------------- */
+
+    this.customizeBtn =
+        document.getElementById("customizeAgeGroupsBtn");
+
+    this.agePanel =
+        document.getElementById("customAgeGroupsPanel");
+
+    this.ageRowsContainer =
+        document.getElementById("ageGroupsRows");
+
+    this.ageError =
+        document.getElementById("customAgeGroupsError");
+
+    this.addAgeGroupBtn =
+        document.getElementById("addAgeGroupBtn");
+
+    this.resetAgeGroupsBtn =
+        document.getElementById("resetAgeGroupsBtn");
+
+    this.applyAgeGroupsBtn =
+        document.getElementById("applyAgeGroupsBtn");
+
+    /* ---------------------------------------------
+       Per-antibiotic results container
+    --------------------------------------------- */
+
+    this.perAntibioticResults =
+        document.getElementById("perAntibioticRegressionResults");
+
 };
 
 
@@ -318,8 +367,6 @@ Regression.registerEvents = function () {
                     event.target
                 );
 
-                /* NEW: close the dropdown as soon as a choice is made */
-
                 this.controls.dependent.panel.classList.remove("show");
 
             }
@@ -336,22 +383,24 @@ Regression.registerEvents = function () {
 
             (event) => {
 
-                if (event.target.type !== "radio")
+                if (event.target.type !== "checkbox")
                     return;
 
                 this.handleAntibioticSelection(
                     event.target
                 );
 
-                /* NEW: close the dropdown as soon as a choice is made */
-
-                this.controls.antibiotic.panel.classList.remove("show");
-
             }
 
         );
 
     }
+
+    /* ----------------------------------------------
+       Custom age-group UI
+    ---------------------------------------------- */
+
+    this.attachAgeGroupEvents();
 
     /* ----------------------------------------------
        Populate variable dropdowns whenever
@@ -487,13 +536,13 @@ Regression.attachToggle = function (control) {
 
             event.stopPropagation();
 
-            /* NEW: single-choice dropdowns (dependent variable,
-               antibiotic) close on any option click, even when the
-               option is already selected. The multi-select
-               predictors dropdown stays open. */
+            /* Single-choice dropdowns (dependent variable) close
+               on any option click. Multi-select dropdowns
+               (independent variables, antibiotics) stay open. */
 
             if (
                 control !== this.controls.independent &&
+                control !== this.controls.antibiotic &&
                 event.target.closest("label")
             ) {
 
@@ -586,6 +635,8 @@ Regression.populateIndependentControl = function () {
 
     this.updateIndependentButtonLabel();
 
+    this.updateAgeGroupUI();
+
 };
 
 
@@ -671,19 +722,17 @@ Regression.populateAntibioticControl = function () {
         const label =
             document.createElement("label");
 
-        const radio =
+        const checkbox =
             document.createElement("input");
 
-        radio.type = "radio";
+        checkbox.type = "checkbox";
 
-        radio.name = "antibioticChoice";
+        checkbox.value = value;
 
-        radio.value = value;
+        checkbox.checked =
+            this.selected.antibiotics.includes(value);
 
-        radio.checked =
-            (this.selected.antibiotic === value);
-
-        label.appendChild(radio);
+        label.appendChild(checkbox);
 
         label.appendChild(
 
@@ -755,6 +804,8 @@ Regression.handleIndependentSelection = function (checkbox) {
 
     this.updateIndependentButtonLabel();
 
+    this.updateAgeGroupUI();
+
 };
 
 
@@ -812,7 +863,6 @@ Regression.handleDependentSelection = function (radio) {
 
     this.applyPredictorExclusions();
 
-    // Show/hide antibiotic selector based on dependent variable
     this.handleAntibioticVisibility();
 
 };
@@ -836,14 +886,34 @@ Regression.updateDependentButtonLabel = function () {
 
 
 /* ==========================================================
-   ANTIBIOTIC SELECTION
+   ANTIBIOTIC SELECTION (MULTI-SELECT)
    ========================================================== */
 
-Regression.handleAntibioticSelection = function (radio) {
+Regression.handleAntibioticSelection = function (checkbox) {
 
-    if (!radio.checked) return;
+    const value =
+        checkbox.value;
 
-    this.selected.antibiotic = radio.value;
+    if (checkbox.checked) {
+
+        if (!this.selected.antibiotics.includes(value)) {
+
+            this.selected.antibiotics.push(value);
+
+        }
+
+    }
+
+    else {
+
+        this.selected.antibiotics =
+            this.selected.antibiotics.filter(
+
+                a => a !== value
+
+            );
+
+    }
 
     this.updateAntibioticButtonLabel();
 
@@ -858,11 +928,29 @@ Regression.updateAntibioticButtonLabel = function () {
     if (!control)
         return;
 
-    control.button.textContent =
+    const count =
+        this.selected.antibiotics.length;
 
-        this.selected.antibiotic
-            ? this.formatLabel(this.selected.antibiotic)
-            : "Select Antibiotic";
+    if (count === 0) {
+
+        control.button.textContent =
+            "Select Antibiotics";
+
+    }
+
+    else if (count === 1) {
+
+        control.button.textContent =
+            this.formatLabel(this.selected.antibiotics[0]);
+
+    }
+
+    else {
+
+        control.button.textContent =
+            count + " selected";
+
+    }
 
 };
 
@@ -880,16 +968,22 @@ Regression.handleAntibioticVisibility = function () {
 
         // Reset antibiotic selection when showing
         if (this.controls.antibiotic) {
-            this.selected.antibiotic = null;
+
+            this.selected.antibiotics = [];
+
             this.updateAntibioticButtonLabel();
-            const radios = this.controls.antibiotic.panel.querySelectorAll("input[type='radio']");
-            radios.forEach(r => r.checked = false);
+
+            const checkboxes = this.controls.antibiotic.panel.querySelectorAll("input[type='checkbox']");
+
+            checkboxes.forEach(c => c.checked = false);
+
         }
 
     } else {
 
         group.style.display = "none";
-        this.selected.antibiotic = null;
+
+        this.selected.antibiotics = [];
 
     }
 
@@ -979,6 +1073,8 @@ Regression.applyPredictorExclusions = function () {
 
         this.updateIndependentButtonLabel();
 
+        this.updateAgeGroupUI();
+
         if (typeof showMessage === "function") {
 
             showMessage(
@@ -1010,11 +1106,15 @@ Regression.resetVariables = function () {
 
         dependent: null,
 
-        antibiotic: null
+        antibiotics: []
 
     };
 
     this.modelType = null;
+
+    this.customAgeGroups = null;
+
+    this.ageGroupRows = [];
 
     if (this.controls.independent) {
 
@@ -1060,11 +1160,11 @@ Regression.resetVariables = function () {
     if (this.controls.antibiotic) {
 
         this.controls.antibiotic.button.textContent =
-            "Select Antibiotic";
+            "Select Antibiotics";
 
         this.controls.antibiotic.panel
 
-            .querySelectorAll("input[type='radio']")
+            .querySelectorAll("input[type='checkbox']")
 
             .forEach(box => { box.checked = false; });
 
@@ -1075,6 +1175,13 @@ Regression.resetVariables = function () {
     if (group) {
         group.style.display = "none";
     }
+
+    // Reset custom age-group UI
+    this.closeAgeGroupPanel();
+
+    this.clearAgeGroupError();
+
+    this.updateAgeGroupUI();
 
     this.resetResults();
 
@@ -1104,12 +1211,12 @@ Regression.runRegression = async function () {
 
     // Check if antibiotic is required
     if (this.selected.dependent === "antibiogram_susceptibility" &&
-        !this.selected.antibiotic) {
+        this.selected.antibiotics.length === 0) {
 
         if (typeof showMessage === "function") {
 
             showMessage(
-                "Please select an antibiotic for antibiogram regression.",
+                "Please select at least one antibiotic for antibiogram regression.",
                 "error"
             );
 
@@ -1132,8 +1239,6 @@ Regression.runRegression = async function () {
 
     const payload = {
 
-        /* NEW: time duration (month-year, "YYYY-MM" or "") */
-
         from_month: filters.from_month || "",
 
         to_month: filters.to_month || "",
@@ -1150,9 +1255,28 @@ Regression.runRegression = async function () {
 
         dependent_variable: this.selected.dependent,
 
-        antibiotic: this.selected.antibiotic
+        antibiotics: this.selected.antibiotics
 
     };
+
+    /* ---------------------------------------------
+       CUSTOM AGE GROUPS
+       Send age_groups only when age_group is among
+       the selected predictors AND the user has
+       applied custom bins.
+    --------------------------------------------- */
+
+    if (
+        this.selected.independent.includes("age_group")
+        &&
+        this.customAgeGroups
+        &&
+        this.customAgeGroups.length > 0
+    ) {
+
+        payload.age_groups = this.customAgeGroups;
+
+    }
 
     if (typeof showLoading === "function") {
         showLoading(true);
@@ -1204,9 +1328,37 @@ Regression.render = function (result) {
 
     this.lastResult = result;
 
-    this.modelType = result.model;
+    this.modelType = result.model || null;
 
     this.renderModelType();
+
+    /* ---------------------------------------------
+       MULTI-ANTIBIOTIC MODE
+       When the backend returns antibiogram_mode
+       === "multi", the single-result sections are
+       hidden and only the per-antibiotic cards are
+       displayed.
+    --------------------------------------------- */
+
+    if (result.antibiogram_mode === "multi") {
+
+        this.hideSingleResultSections();
+
+        this.renderPerAntibioticResults(result);
+
+        this.updateInfoStrip(result);
+
+        return;
+
+    }
+
+    /* ---------------------------------------------
+       SINGLE RESULT MODE (Layout A)
+    --------------------------------------------- */
+
+    this.showSingleResultSections();
+
+    this.clearPerAntibioticResults();
 
     this.renderOutcomeDistribution(result);
 
@@ -1229,6 +1381,68 @@ Regression.render = function (result) {
     this.renderInterpretation(result);
 
     this.updateInfoStrip(result);
+
+};
+
+
+Regression.hideSingleResultSections = function () {
+
+    const sectionIds = [
+        "classificationSection",
+        "multinomialClassificationSection",
+        "diagnosticsSection",
+        "hosmerLemeshowSection",
+        "proportionalOddsSection",
+        "vifSection",
+        "outcomeDistributionSection"
+    ];
+
+    sectionIds.forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if (el) el.style.display = "none";
+
+    });
+
+    // Hide the primary coefficients card and interpretation card
+    const coeffCard = this.tableHead
+        ? this.tableHead.closest(".report-card")
+        : null;
+
+    if (coeffCard) coeffCard.style.display = "none";
+
+    if (this.interpretationBox) {
+
+        const interpCard =
+            this.interpretationBox.closest(".report-card");
+
+        if (interpCard) interpCard.style.display = "none";
+
+    }
+
+};
+
+
+Regression.showSingleResultSections = function () {
+
+    const coeffCard = this.tableHead
+        ? this.tableHead.closest(".report-card")
+        : null;
+
+    if (coeffCard) coeffCard.style.display = "";
+
+    if (this.interpretationBox) {
+
+        const interpCard =
+            this.interpretationBox.closest(".report-card");
+
+        if (interpCard) interpCard.style.display = "";
+
+    }
+
+    // Individual diagnostic sections are controlled by their
+    // respective render methods — do not force-show here.
 
 };
 
@@ -1362,45 +1576,37 @@ Regression.renderCoefficientsTable = function (result) {
         const cells = [];
 
         if (isMultinomial) {
-            // Outcome category
             const catCell = document.createElement("td");
             catCell.textContent = this.formatLabel(coefficient.outcome_category || "—");
             cells.push(catCell);
         }
 
-        // Variable name
         const varCell = document.createElement("td");
         varCell.textContent = coefficient.variable || "—";
         cells.push(varCell);
 
-        // Coefficient
         const coefCell = document.createElement("td");
         coefCell.textContent = this.formatNumberOrDash(coefficient.coefficient);
         cells.push(coefCell);
 
-        // Std Error
         const seCell = document.createElement("td");
         seCell.textContent = this.formatNumberOrDash(coefficient.standard_error);
         cells.push(seCell);
 
-        // z-value
         const zCell = document.createElement("td");
         zCell.textContent = this.formatNumberOrDash(coefficient.z_value || coefficient.t_value);
         cells.push(zCell);
 
-        // p-value
         const pCell = document.createElement("td");
         pCell.textContent = this.formatPValue(coefficient.p_value) +
             this.significanceMarker(coefficient.p_value);
         cells.push(pCell);
 
-        // Ratio (OR or RRR)
         const ratioKey = isMultinomial ? "relative_risk_ratio" : "odds_ratio";
         const ratioCell = document.createElement("td");
         ratioCell.textContent = this.formatNumberOrDash(coefficient[ratioKey]);
         cells.push(ratioCell);
 
-        // CI
         const ciCell = document.createElement("td");
         ciCell.textContent =
             "[" +
@@ -1562,7 +1768,6 @@ Regression.renderClassification = function (result) {
         this.f1ScoreCell.textContent = this.formatNumberOrDash(classification.f1_score);
     }
 
-    // Confusion matrix
     const cm = classification.confusion_matrix || {};
     if (this.tnCell) this.tnCell.textContent = cm.true_negative ?? "—";
     if (this.fpCell) this.fpCell.textContent = cm.false_positive ?? "—";
@@ -1603,7 +1808,6 @@ Regression.renderMultinomialClassification = function (result) {
             this.formatPercent(classification.accuracy);
     }
 
-    // Build confusion matrix
     const classes = classification.classes || [];
     const matrix = classification.confusion_matrix || [];
 
@@ -1702,6 +1906,14 @@ Regression.renderProportionalOdds = function (result) {
 
     this.proportionalOddsSection.style.display = "";
 
+    this.proportionalOddsContent.innerHTML =
+        this.buildProportionalOddsHTML(po);
+
+};
+
+
+Regression.buildProportionalOddsHTML = function (po) {
+
     let html = "<div style='margin-bottom:8px;'><strong>Test:</strong> " +
         (po.test || "Brant-style proportional-odds diagnostic") + "</div>";
 
@@ -1711,7 +1923,6 @@ Regression.renderProportionalOdds = function (result) {
     html += "<div style='margin-bottom:12px;'><strong>Interpretation:</strong> " +
         (po.interpretation || "Run regression to see diagnostic.") + "</div>";
 
-    // Show coefficient comparison if available
     const comparison = po.coefficient_comparison || [];
     if (comparison.length > 0) {
         html += "<div style='margin-top:12px; font-weight:500;'>Coefficient Comparison Across Cumulative Logits</div>";
@@ -1719,7 +1930,6 @@ Regression.renderProportionalOdds = function (result) {
         html += "<table class='summary-table'>";
         html += "<thead><tr><th>Variable</th>";
 
-        // Get unique split names
         const splitNames = new Set();
         comparison.forEach(item => {
             (item.estimates || []).forEach(e => {
@@ -1760,7 +1970,7 @@ Regression.renderProportionalOdds = function (result) {
         html += "<div style='margin-top:12px; color:#64748b; font-size:13px;'>" + po.note + "</div>";
     }
 
-    this.proportionalOddsContent.innerHTML = html;
+    return html;
 
 };
 
@@ -1783,7 +1993,6 @@ Regression.renderVif = function (result) {
 
     this.vifSection.style.display = "";
 
-    // Sort by VIF descending
     const sortedVif = [...vif].sort((a, b) => (b.vif || 0) - (a.vif || 0));
 
     this.vifTableBody.innerHTML = "";
@@ -1823,8 +2032,17 @@ Regression.renderInterpretation = function (result) {
     if (!this.interpretationBox)
         return;
 
+    this.interpretationBox.innerHTML =
+        this.buildInterpretationHTML(result);
+
+    this.interpretationBox.className = "message info";
+
+};
+
+
+Regression.buildInterpretationHTML = function (result) {
+
     const stats = result.statistics || {};
-    const diagnostics = result.diagnostics || {};
     const coefficients = result.coefficients || [];
 
     const modelLabels = {
@@ -1852,7 +2070,6 @@ Regression.renderInterpretation = function (result) {
         " as independent variables (N = " + formatNumber(n) + ")."
     );
 
-    // Model fit
     const pseudoR2 = stats.mcfadden_pseudo_r_squared;
     if (pseudoR2 !== null && pseudoR2 !== undefined) {
         parts.push(
@@ -1861,7 +2078,6 @@ Regression.renderInterpretation = function (result) {
         );
     }
 
-    // Likelihood ratio test
     const lr = stats.likelihood_ratio;
     const lrP = stats.likelihood_ratio_p_value;
     if (lr !== null && lr !== undefined && lrP !== null && lrP !== undefined) {
@@ -1874,7 +2090,6 @@ Regression.renderInterpretation = function (result) {
         );
     }
 
-    // Significant predictors
     const significantCoefs = coefficients.filter(c =>
         c.variable !== "Intercept" &&
         c.p_value !== null &&
@@ -1886,7 +2101,6 @@ Regression.renderInterpretation = function (result) {
         const sigList = significantCoefs.map(c => {
             const ratioKey = result.model === "multinomial_logistic" ? "relative_risk_ratio" : "odds_ratio";
             const ratio = c[ratioKey];
-            const direction = c.coefficient > 0 ? "increased" : "decreased";
             const outcome = result.model === "multinomial_logistic" && c.outcome_category
                 ? " (" + this.formatLabel(c.outcome_category) + ")"
                 : "";
@@ -1905,7 +2119,6 @@ Regression.renderInterpretation = function (result) {
         );
     }
 
-    // VIF warnings
     const highVif = (result.vif || []).filter(e => e.vif > 10);
     if (highVif.length > 0) {
         parts.push(
@@ -1915,7 +2128,6 @@ Regression.renderInterpretation = function (result) {
         );
     }
 
-    // Convergence
     const converged = result.converged !== undefined ? result.converged :
                      stats.converged !== undefined ? stats.converged :
                      result.model_status?.converged;
@@ -1925,10 +2137,7 @@ Regression.renderInterpretation = function (result) {
         );
     }
 
-    this.interpretationBox.innerHTML =
-        parts.join(" ");
-
-    this.interpretationBox.className = "message info";
+    return parts.join(" ");
 
 };
 
@@ -1972,14 +2181,31 @@ Regression.updateInfoStrip = function (result) {
 
     }
 
-    if (this.modelTypeDisplay) {
-        // Already updated in renderModelType
-    }
-
     if (this.totalRecords) {
 
-        const n = result.statistics?.n || result.n || 0;
-        this.totalRecords.textContent = formatNumber(n);
+        // In multi mode, sum the N across per-antibiotic models
+        if (result.antibiogram_mode === "multi" && result.antibiotics) {
+
+            const entries = Object.values(result.antibiotics);
+
+            const total = entries.reduce(
+                (sum, entry) =>
+                    sum + (
+                        entry && entry.statistics && entry.statistics.n
+                            ? Number(entry.statistics.n)
+                            : 0
+                    ),
+                0
+            );
+
+            this.totalRecords.textContent = formatNumber(total);
+
+        } else {
+
+            const n = result.statistics?.n || result.n || 0;
+            this.totalRecords.textContent = formatNumber(n);
+
+        }
 
     }
 
@@ -2028,7 +2254,6 @@ Regression.resetResults = function () {
         this.tableBody.innerHTML = "";
     }
 
-    // Reset model fit strip
     const stripCells = [
         "pseudoRSquaredCell", "aicSummaryCell", "bicSummaryCell",
         "logLikelihoodCell", "nObservationsCell", "convergedCell"
@@ -2042,7 +2267,6 @@ Regression.resetResults = function () {
         }
     });
 
-    // Reset diagnostics
     const diagCells = [
         "logLikelihoodDetailCell", "nullLogLikelihoodCell", "likelihoodRatioCell",
         "aicCell", "bicCell", "pseudoRSquaredDetailCell",
@@ -2057,7 +2281,6 @@ Regression.resetResults = function () {
         }
     });
 
-    // Reset classification
     if (this.classificationSection) {
         this.classificationSection.style.display = "none";
     }
@@ -2069,7 +2292,6 @@ Regression.resetResults = function () {
         if (this[key]) this[key].textContent = "—";
     });
 
-    // Reset multinomial classification
     if (this.multinomialClassificationSection) {
         this.multinomialClassificationSection.style.display = "none";
     }
@@ -2083,7 +2305,6 @@ Regression.resetResults = function () {
         this.confusionMatrixBody.innerHTML = "";
     }
 
-    // Reset Hosmer-Lemeshow
     if (this.hosmerLemeshowSection) {
         this.hosmerLemeshowSection.style.display = "none";
     }
@@ -2096,7 +2317,6 @@ Regression.resetResults = function () {
         }
     });
 
-    // Reset proportional odds
     if (this.proportionalOddsSection) {
         this.proportionalOddsSection.style.display = "none";
     }
@@ -2104,7 +2324,6 @@ Regression.resetResults = function () {
         this.proportionalOddsContent.innerHTML = "<p style='color:#64748b;'>Run regression to see proportional odds diagnostic.</p>";
     }
 
-    // Reset VIF
     if (this.vifSection) {
         this.vifSection.style.display = "none";
     }
@@ -2112,7 +2331,6 @@ Regression.resetResults = function () {
         this.vifTableBody.innerHTML = "";
     }
 
-    // Reset interpretation
     if (this.interpretationBox) {
 
         this.interpretationBox.innerHTML =
@@ -2122,13 +2340,11 @@ Regression.resetResults = function () {
 
     }
 
-    // Reset outcome distribution
     if (this.outcomeDistributionBody) {
         this.outcomeDistributionBody.innerHTML =
             "<tr><td colspan='3' style='text-align:center; color:#94a3b8;'>Run regression to see outcome distribution.</td></tr>";
     }
 
-    // Reset info strip
     if (this.modelTypeDisplay) {
         this.modelTypeDisplay.textContent = "—";
     }
@@ -2138,6 +2354,491 @@ Regression.resetResults = function () {
     if (this.reportGeneratedValue) {
         this.reportGeneratedValue.textContent = "—";
     }
+
+    // Restore single-result sections & clear multi cards
+    this.showSingleResultSections();
+    this.clearPerAntibioticResults();
+
+};
+
+
+/* ==========================================================
+   PER-ANTIBIOTIC RESULTS
+   ========================================================== */
+
+Regression.clearPerAntibioticResults = function () {
+
+    if (this.perAntibioticResults) {
+
+        this.perAntibioticResults.innerHTML = "";
+
+    }
+
+};
+
+
+Regression.renderPerAntibioticResults = function (result) {
+
+    const container =
+        this.perAntibioticResults;
+
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const antibioticEntries =
+        Object.entries(result.antibiotics || {});
+
+    if (antibioticEntries.length === 0) {
+
+        const msg = document.createElement("div");
+        msg.className = "message info";
+        msg.textContent = "No per-antibiotic results were produced.";
+        container.appendChild(msg);
+        return;
+
+    }
+
+    // Page-level heading
+    const header = document.createElement("section");
+    header.className = "report-card";
+
+    const headerInner = document.createElement("div");
+    headerInner.className = "card-header";
+
+    const headerDiv = document.createElement("div");
+
+    const title = document.createElement("h2");
+    title.textContent = "Table 1. Per-Antibiotic Ordinal Logistic Regression";
+
+    const subtitle = document.createElement("p");
+    subtitle.textContent =
+        "Separate ordinal logistic regression model for each selected antibiotic. " +
+        "Each model uses the susceptibility outcome (resistant / intermediate / susceptible) " +
+        "of that antibiotic; no pooled model is produced.";
+
+    headerDiv.appendChild(title);
+    headerDiv.appendChild(subtitle);
+    headerInner.appendChild(headerDiv);
+    header.appendChild(headerInner);
+    container.appendChild(header);
+
+    // One card per antibiotic
+    antibioticEntries.forEach(([antibiotic, entry], index) => {
+
+        const card = document.createElement("section");
+        card.className = "report-card";
+
+        const cardHeader = document.createElement("div");
+        cardHeader.className = "card-header";
+
+        const headerText = document.createElement("div");
+
+        const cardTitle = document.createElement("h2");
+        cardTitle.textContent =
+            "Table " + (index + 1) + ". Ordinal Logistic Regression — " +
+            this.formatLabel(antibiotic);
+
+        const cardSubtitle = document.createElement("p");
+        cardSubtitle.textContent =
+            "Outcome: susceptibility to " +
+            this.formatLabel(antibiotic) +
+            " (resistant → intermediate → susceptible).";
+
+        headerText.appendChild(cardTitle);
+        headerText.appendChild(cardSubtitle);
+        cardHeader.appendChild(headerText);
+        card.appendChild(cardHeader);
+
+        if (entry && entry.error) {
+
+            const err = document.createElement("div");
+            err.className = "message error";
+            err.textContent =
+                "Model could not be fitted for " +
+                this.formatLabel(antibiotic) +
+                ": " + entry.error;
+            card.appendChild(err);
+            container.appendChild(card);
+            return;
+
+        }
+
+        const mergedEntry = {
+            ...entry,
+            dependent_variable: "antibiogram_susceptibility",
+            independent_variables: result.independent_variables || []
+        };
+
+        // 1. Coefficients + Model fit strip
+        card.appendChild(
+            this.buildCoefficientsTableDOM(mergedEntry)
+        );
+
+        // 2. Diagnostics
+        card.appendChild(
+            this.buildDiagnosticsTableDOM(mergedEntry)
+        );
+
+        // 3. Proportional odds (ordinal)
+        if (
+            mergedEntry.model === "ordinal_logistic" &&
+            mergedEntry.diagnostics &&
+            mergedEntry.diagnostics.proportional_odds &&
+            mergedEntry.diagnostics.proportional_odds.success
+        ) {
+
+            card.appendChild(
+                this.buildProportionalOddsDOM(mergedEntry)
+            );
+
+        }
+
+        // 4. VIF
+        if (Array.isArray(mergedEntry.vif) && mergedEntry.vif.length > 0) {
+
+            card.appendChild(
+                this.buildVifTableDOM(mergedEntry)
+            );
+
+        }
+
+        // 5. Interpretation
+        card.appendChild(
+            this.buildInterpretationDOM(mergedEntry, antibiotic)
+        );
+
+        container.appendChild(card);
+
+    });
+
+};
+
+
+/* ==========================================================
+   STANDALONE DOM BUILDERS (for per-antibiotic cards)
+   ========================================================== */
+
+Regression.buildCoefficientsTableDOM = function (entry) {
+
+    const wrapper = document.createElement("div");
+
+    // Model fit strip
+    const stats = entry.statistics || {};
+
+    const strip = document.createElement("div");
+    strip.className = "test-summary-strip";
+
+    const items = [
+        { label: "McFadden R²", value: this.formatNumberOrDash(stats.mcfadden_pseudo_r_squared) },
+        { label: "AIC", value: this.formatNumberOrDash(stats.aic) },
+        { label: "BIC", value: this.formatNumberOrDash(stats.bic) },
+        { label: "Log-Likelihood", value: this.formatNumberOrDash(stats.log_likelihood) },
+        { label: "N", value: formatNumber(stats.n || entry.n || 0) },
+        {
+            label: "Converged",
+            value: entry.converged ? "✅ Yes" : "❌ No"
+        }
+    ];
+
+    items.forEach(item => {
+        const stat = document.createElement("div");
+        stat.className = "test-summary-item";
+
+        const lbl = document.createElement("span");
+        lbl.className = "test-summary-label";
+        lbl.textContent = item.label;
+
+        const val = document.createElement("span");
+        val.className = "test-summary-value";
+        val.textContent = item.value;
+
+        stat.appendChild(lbl);
+        stat.appendChild(val);
+        strip.appendChild(stat);
+    });
+
+    wrapper.appendChild(strip);
+
+    // Coefficients table
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "table-container";
+
+    const table = document.createElement("table");
+    table.className = "summary-table regression-table";
+
+    const thead = document.createElement("thead");
+    const tbody = document.createElement("tbody");
+
+    const isMultinomial = entry.model === "multinomial_logistic";
+
+    const headers = isMultinomial
+        ? ["Outcome Category", "Variable", "Coefficient", "Std. Error", "z", "p-value", "RRR", "95% CI"]
+        : ["Variable", "Coefficient", "Std. Error", "z", "p-value", "Odds Ratio", "95% CI"];
+
+    const headerRow = document.createElement("tr");
+    headers.forEach(label => {
+        headerRow.appendChild(this.createHeaderCell(label));
+    });
+    thead.appendChild(headerRow);
+
+    const coefficients = entry.coefficients || [];
+
+    if (coefficients.length === 0) {
+        const emptyRow = document.createElement("tr");
+        const emptyCell = document.createElement("td");
+        emptyCell.colSpan = headers.length;
+        emptyCell.className = "table-empty";
+        emptyCell.textContent = "No coefficients available.";
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+    }
+    else {
+
+        coefficients.forEach(coefficient => {
+
+            const row = document.createElement("tr");
+
+            const isSignificant =
+                coefficient.p_value !== null &&
+                coefficient.p_value !== undefined &&
+                coefficient.p_value < 0.05;
+
+            if (isSignificant) row.className = "significant-row";
+
+            const cells = [];
+
+            if (isMultinomial) {
+                const catCell = document.createElement("td");
+                catCell.textContent = this.formatLabel(coefficient.outcome_category || "—");
+                cells.push(catCell);
+            }
+
+            const varCell = document.createElement("td");
+            varCell.textContent = coefficient.variable || "—";
+            cells.push(varCell);
+
+            const coefCell = document.createElement("td");
+            coefCell.textContent = this.formatNumberOrDash(coefficient.coefficient);
+            cells.push(coefCell);
+
+            const seCell = document.createElement("td");
+            seCell.textContent = this.formatNumberOrDash(coefficient.standard_error);
+            cells.push(seCell);
+
+            const zCell = document.createElement("td");
+            zCell.textContent = this.formatNumberOrDash(coefficient.z_value || coefficient.t_value);
+            cells.push(zCell);
+
+            const pCell = document.createElement("td");
+            pCell.textContent = this.formatPValue(coefficient.p_value) +
+                this.significanceMarker(coefficient.p_value);
+            cells.push(pCell);
+
+            const ratioKey = isMultinomial ? "relative_risk_ratio" : "odds_ratio";
+            const ratioCell = document.createElement("td");
+            ratioCell.textContent = this.formatNumberOrDash(coefficient[ratioKey]);
+            cells.push(ratioCell);
+
+            const ciCell = document.createElement("td");
+            ciCell.textContent =
+                "[" +
+                this.formatNumberOrDash(coefficient.ci_lower) +
+                ", " +
+                this.formatNumberOrDash(coefficient.ci_upper) +
+                "]";
+            cells.push(ciCell);
+
+            cells.forEach(cell => row.appendChild(cell));
+            tbody.appendChild(row);
+
+        });
+
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    wrapper.appendChild(tableContainer);
+
+    return wrapper;
+
+};
+
+
+Regression.buildDiagnosticsTableDOM = function (entry) {
+
+    const wrapper = document.createElement("div");
+
+    const heading = document.createElement("h3");
+    heading.style.marginTop = "16px";
+    heading.style.marginBottom = "8px";
+    heading.textContent = "Model Diagnostics";
+    wrapper.appendChild(heading);
+
+    const stats = entry.statistics || {};
+    const diagnostics = entry.diagnostics || {};
+
+    const rows = [
+        ["Log-Likelihood", this.formatNumberOrDash(stats.log_likelihood)],
+        ["Null Log-Likelihood", this.formatNumberOrDash(stats.null_log_likelihood)],
+        [
+            "Likelihood-Ratio Test",
+            this.formatNumberOrDash(stats.likelihood_ratio) +
+            (stats.likelihood_ratio_p_value !== undefined && stats.likelihood_ratio_p_value !== null
+                ? " (p = " + this.formatPValue(stats.likelihood_ratio_p_value) + ")"
+                : "")
+        ],
+        ["AIC", this.formatNumberOrDash(stats.aic)],
+        ["BIC", this.formatNumberOrDash(stats.bic)],
+        ["McFadden Pseudo R²", this.formatNumberOrDash(stats.mcfadden_pseudo_r_squared)],
+        [
+            "Convergence Status",
+            entry.converged ? "Converged ✅" : "Did not converge ❌"
+        ],
+        ["Condition Number", this.formatNumberOrDash(diagnostics.condition_number)]
+    ];
+
+    const container = document.createElement("div");
+    container.className = "table-container";
+
+    const table = document.createElement("table");
+    table.className = "summary-table";
+
+    const tbody = document.createElement("tbody");
+
+    rows.forEach(([label, value]) => {
+        const tr = document.createElement("tr");
+
+        const labelCell = document.createElement("td");
+        labelCell.style.width = "55%";
+        labelCell.textContent = label;
+
+        const valueCell = document.createElement("td");
+        valueCell.textContent = value;
+
+        tr.appendChild(labelCell);
+        tr.appendChild(valueCell);
+        tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+    wrapper.appendChild(container);
+
+    return wrapper;
+
+};
+
+
+Regression.buildProportionalOddsDOM = function (entry) {
+
+    const wrapper = document.createElement("div");
+
+    const heading = document.createElement("h3");
+    heading.style.marginTop = "16px";
+    heading.style.marginBottom = "8px";
+    heading.textContent = "Proportional Odds Assumption";
+    wrapper.appendChild(heading);
+
+    const content = document.createElement("div");
+    content.innerHTML =
+        this.buildProportionalOddsHTML(entry.diagnostics.proportional_odds);
+
+    wrapper.appendChild(content);
+
+    return wrapper;
+
+};
+
+
+Regression.buildVifTableDOM = function (entry) {
+
+    const wrapper = document.createElement("div");
+
+    const heading = document.createElement("h3");
+    heading.style.marginTop = "16px";
+    heading.style.marginBottom = "8px";
+    heading.textContent = "Variance Inflation Factors (VIF)";
+    wrapper.appendChild(heading);
+
+    const sortedVif =
+        [...entry.vif].sort((a, b) => (b.vif || 0) - (a.vif || 0));
+
+    const container = document.createElement("div");
+    container.className = "table-container";
+
+    const table = document.createElement("table");
+    table.className = "summary-table";
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+
+    const th1 = document.createElement("th");
+    th1.style.width = "70%";
+    th1.textContent = "Predictor";
+    headRow.appendChild(th1);
+
+    const th2 = document.createElement("th");
+    th2.style.width = "30%";
+    th2.textContent = "VIF";
+    headRow.appendChild(th2);
+
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement("tbody");
+
+    sortedVif.forEach(entryItem => {
+
+        const tr = document.createElement("tr");
+
+        const labelCell = document.createElement("td");
+        labelCell.className = "row-label";
+        labelCell.textContent = this.formatLabel(entryItem.variable);
+
+        const vifCell = document.createElement("td");
+        vifCell.style.textAlign = "center";
+        vifCell.textContent = this.formatNumberOrDash(entryItem.vif);
+
+        if (entryItem.vif > 10) {
+            tr.className = "significant-row";
+            vifCell.style.fontWeight = "bold";
+        }
+
+        tr.appendChild(labelCell);
+        tr.appendChild(vifCell);
+        tbody.appendChild(tr);
+
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    container.appendChild(table);
+    wrapper.appendChild(container);
+
+    return wrapper;
+
+};
+
+
+Regression.buildInterpretationDOM = function (entry, antibiotic) {
+
+    const wrapper = document.createElement("div");
+
+    const heading = document.createElement("h3");
+    heading.style.marginTop = "16px";
+    heading.style.marginBottom = "8px";
+    heading.textContent = "Statistical Interpretation";
+    wrapper.appendChild(heading);
+
+    const box = document.createElement("div");
+    box.className = "message info";
+    box.innerHTML =
+        this.buildInterpretationHTML(entry);
+
+    wrapper.appendChild(box);
+
+    return wrapper;
 
 };
 
@@ -2155,6 +2856,50 @@ Regression.exportTable = function () {
         return;
     }
 
+    // Multi mode → export all per-antibiotic coefficient tables
+    if (this.lastResult.antibiogram_mode === "multi" && this.lastResult.antibiotics) {
+
+        let csv = "Antibiotic,Variable,Coefficient,Std_Error,z,p_value,Odds_Ratio,CI_Lower,CI_Upper\n";
+
+        Object.entries(this.lastResult.antibiotics).forEach(([antibiotic, entry]) => {
+
+            if (!entry || entry.error) return;
+
+            (entry.coefficients || []).forEach(coef => {
+                const row = [
+                    antibiotic,
+                    coef.variable || "—",
+                    coef.coefficient !== undefined ? coef.coefficient : "—",
+                    coef.standard_error !== undefined ? coef.standard_error : "—",
+                    coef.z_value || coef.t_value || "—",
+                    coef.p_value !== undefined ? coef.p_value : "—",
+                    coef.odds_ratio || coef.relative_risk_ratio || "—",
+                    coef.ci_lower || "—",
+                    coef.ci_upper || "—"
+                ];
+                csv += row.join(",") + "\n";
+            });
+
+        });
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "regression_per_antibiotic_" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (typeof showMessage === "function") {
+            showMessage("Per-antibiotic regression tables exported successfully.", "success");
+        }
+        return;
+
+    }
+
+    // Single mode
     const coefficients = this.lastResult.coefficients || [];
     if (coefficients.length === 0) {
         if (typeof showMessage === "function") {
@@ -2163,7 +2908,6 @@ Regression.exportTable = function () {
         return;
     }
 
-    // Build CSV
     let csv = "Variable,Coefficient,Std_Error,z,p_value,Odds_Ratio,CI_Lower,CI_Upper\n";
 
     coefficients.forEach(coef => {
@@ -2180,7 +2924,6 @@ Regression.exportTable = function () {
         csv += row.join(",") + "\n";
     });
 
-    // Download
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2273,10 +3016,6 @@ Regression.formatPercent = function (value) {
 };
 
 
-/* ==========================================================
-   FORMAT "YYYY-MM" AS "Jan 2025"   (NEW)
-   ========================================================== */
-
 Regression.formatMonth = function (value) {
 
     if (!value)
@@ -2316,10 +3055,6 @@ Regression.formatMonth = function (value) {
 };
 
 
-/* ==========================================================
-   BUILD PERIOD TEXT   (NEW)
-   ========================================================== */
-
 Regression.formatPeriod = function (filters) {
 
     if (filters.from_month && filters.to_month) {
@@ -2351,10 +3086,6 @@ Regression.formatPeriod = function (filters) {
 };
 
 
-/* ==========================================================
-   SIGNIFICANCE MARKER
-   ========================================================== */
-
 Regression.significanceMarker = function (pValue) {
 
     if (pValue === null || pValue === undefined)
@@ -2371,10 +3102,6 @@ Regression.significanceMarker = function (pValue) {
 
 };
 
-
-/* ==========================================================
-   TABLE CELL HELPERS
-   ========================================================== */
 
 Regression.createHeaderCell = function (text) {
 
@@ -2398,6 +3125,400 @@ Regression.createDataCell = function (text) {
     td.textContent = text;
 
     return td;
+
+};
+
+
+/* ==========================================================
+   CUSTOM AGE GROUPS — EVENT WIRING
+   ========================================================== */
+
+Regression.attachAgeGroupEvents = function () {
+
+    if (this.customizeBtn) {
+
+        this.customizeBtn.addEventListener("click", () => {
+
+            if (!this.agePanel)
+                return;
+
+            if (this.agePanel.style.display === "none") {
+                this.openAgeGroupPanel();
+            }
+
+            else {
+                this.closeAgeGroupPanel();
+            }
+
+        });
+
+    }
+
+    if (this.addAgeGroupBtn) {
+
+        this.addAgeGroupBtn.addEventListener("click", () => {
+
+            if (this.ageGroupRows.length >= this.AGE_GROUPS_MAX)
+                return;
+
+            const last =
+                this.ageGroupRows[this.ageGroupRows.length - 1];
+
+            const nextMin =
+                (last ? last.max : 0) + 1;
+
+            this.ageGroupRows.push({
+                min: nextMin,
+                max: nextMin + 30
+            });
+
+            this.renderAgeGroupRows();
+
+        });
+
+    }
+
+    if (this.resetAgeGroupsBtn) {
+
+        this.resetAgeGroupsBtn.addEventListener(
+            "click",
+            () => this.handleResetAgeGroups()
+        );
+
+    }
+
+    if (this.applyAgeGroupsBtn) {
+
+        this.applyAgeGroupsBtn.addEventListener(
+            "click",
+            () => this.handleApplyAgeGroups()
+        );
+
+    }
+
+};
+
+
+Regression.defaultAgeGroupRows = function () {
+
+    return [
+        { min: 0,  max: 29  },
+        { min: 30, max: 60  },
+        { min: 61, max: 150 }
+    ];
+
+};
+
+
+Regression.updateAgeGroupUI = function () {
+
+    const needsCustomization =
+        this.selected.independent.includes("age_group");
+
+    if (this.customizeBtn) {
+
+        this.customizeBtn.style.display =
+            needsCustomization ? "" : "none";
+
+    }
+
+    if (!needsCustomization && this.agePanel) {
+
+        this.agePanel.style.display = "none";
+
+    }
+
+    this.updateCustomizeButtonLabel();
+
+};
+
+
+Regression.updateCustomizeButtonLabel = function () {
+
+    if (!this.customizeBtn)
+        return;
+
+    if (
+        this.customAgeGroups
+        &&
+        this.customAgeGroups.length > 0
+    ) {
+
+        this.customizeBtn.textContent =
+            `Age Groups: Custom (${this.customAgeGroups.length}) — Edit`;
+
+    }
+
+    else {
+
+        this.customizeBtn.textContent =
+            "Customize Age Groups";
+
+    }
+
+};
+
+
+Regression.openAgeGroupPanel = function () {
+
+    if (!this.agePanel)
+        return;
+
+    this.ageGroupRows =
+        this.customAgeGroups
+            ? this.customAgeGroups.map(
+                group => ({ min: group.min, max: group.max })
+              )
+            : this.defaultAgeGroupRows();
+
+    this.renderAgeGroupRows();
+
+    this.clearAgeGroupError();
+
+    this.agePanel.style.display = "";
+
+};
+
+
+Regression.closeAgeGroupPanel = function () {
+
+    if (this.agePanel) this.agePanel.style.display = "none";
+
+};
+
+
+Regression.renderAgeGroupRows = function () {
+
+    if (!this.ageRowsContainer)
+        return;
+
+    this.ageRowsContainer.innerHTML = "";
+
+    this.ageGroupRows.forEach((row, index) => {
+
+        const rowEl =
+            document.createElement("div");
+
+        rowEl.style.display = "flex";
+        rowEl.style.alignItems = "center";
+        rowEl.style.gap = "8px";
+        rowEl.style.marginBottom = "8px";
+
+        const label =
+            document.createElement("span");
+
+        label.textContent = `Group ${index + 1}`;
+        label.style.minWidth = "70px";
+        label.style.fontWeight = "500";
+
+        rowEl.appendChild(label);
+
+        const minInput =
+            document.createElement("input");
+
+        minInput.type = "number";
+        minInput.min = "0";
+        minInput.step = "1";
+        minInput.value = row.min;
+        minInput.placeholder = "Min";
+        minInput.className = "month-input";
+        minInput.style.maxWidth = "100px";
+
+        minInput.addEventListener("input", () => {
+
+            const parsed = parseInt(minInput.value, 10);
+
+            this.ageGroupRows[index].min =
+                Number.isFinite(parsed) ? parsed : 0;
+
+        });
+
+        rowEl.appendChild(minInput);
+
+        const sep =
+            document.createElement("span");
+
+        sep.textContent = "to";
+
+        rowEl.appendChild(sep);
+
+        const maxInput =
+            document.createElement("input");
+
+        maxInput.type = "number";
+        maxInput.min = "1";
+        maxInput.step = "1";
+        maxInput.value = row.max;
+        maxInput.placeholder = "Max";
+        maxInput.className = "month-input";
+        maxInput.style.maxWidth = "100px";
+
+        maxInput.addEventListener("input", () => {
+
+            const parsed = parseInt(maxInput.value, 10);
+
+            this.ageGroupRows[index].max =
+                Number.isFinite(parsed) ? parsed : 0;
+
+        });
+
+        rowEl.appendChild(maxInput);
+
+        const removeBtn =
+            document.createElement("button");
+
+        removeBtn.type = "button";
+        removeBtn.className = "secondary-button";
+        removeBtn.textContent = "×";
+        removeBtn.style.padding = "4px 10px";
+        removeBtn.disabled =
+            this.ageGroupRows.length <= this.AGE_GROUPS_MIN;
+
+        removeBtn.addEventListener("click", () => {
+
+            this.ageGroupRows.splice(index, 1);
+
+            this.renderAgeGroupRows();
+
+        });
+
+        rowEl.appendChild(removeBtn);
+
+        this.ageRowsContainer.appendChild(rowEl);
+
+    });
+
+    if (this.addAgeGroupBtn) {
+
+        this.addAgeGroupBtn.disabled =
+            this.ageGroupRows.length >= this.AGE_GROUPS_MAX;
+
+    }
+
+};
+
+
+Regression.showAgeGroupError = function (message) {
+
+    if (!this.ageError)
+        return;
+
+    this.ageError.textContent = message;
+
+    this.ageError.style.display = "";
+
+};
+
+
+Regression.clearAgeGroupError = function () {
+
+    if (!this.ageError)
+        return;
+
+    this.ageError.textContent = "";
+
+    this.ageError.style.display = "none";
+
+};
+
+
+Regression.validateAgeGroupRows = function () {
+
+    if (this.ageGroupRows.length < this.AGE_GROUPS_MIN) {
+
+        return (
+            `At least ${this.AGE_GROUPS_MIN} age groups are required.`
+        );
+
+    }
+
+    if (this.ageGroupRows.length > this.AGE_GROUPS_MAX) {
+
+        return (
+            `At most ${this.AGE_GROUPS_MAX} age groups are allowed.`
+        );
+
+    }
+
+    for (let i = 0; i < this.ageGroupRows.length; i++) {
+
+        const { min, max } = this.ageGroupRows[i];
+
+        if (min < 0) {
+
+            return (
+                `Group ${i + 1}: minimum cannot be negative.`
+            );
+
+        }
+
+        if (min >= max) {
+
+            return (
+                `Group ${i + 1}: minimum must be less than maximum.`
+            );
+
+        }
+
+    }
+
+    for (let i = 0; i < this.ageGroupRows.length - 1; i++) {
+
+        if (this.ageGroupRows[i].max + 1 !== this.ageGroupRows[i + 1].min) {
+
+            return (
+                `Group ${i + 1} ends at ${this.ageGroupRows[i].max}, ` +
+                `but Group ${i + 2} starts at ${this.ageGroupRows[i + 1].min}. ` +
+                `Groups must be contiguous (no gaps, no overlaps).`
+            );
+
+        }
+
+    }
+
+    return null;
+
+};
+
+
+Regression.handleApplyAgeGroups = function () {
+
+    this.clearAgeGroupError();
+
+    const error =
+        this.validateAgeGroupRows();
+
+    if (error) {
+
+        this.showAgeGroupError(error);
+
+        return;
+
+    }
+
+    this.customAgeGroups =
+        this.ageGroupRows.map(
+            group => ({ min: group.min, max: group.max })
+        );
+
+    this.updateCustomizeButtonLabel();
+
+    this.closeAgeGroupPanel();
+
+};
+
+
+Regression.handleResetAgeGroups = function () {
+
+    this.customAgeGroups = null;
+
+    this.ageGroupRows = [];
+
+    this.updateCustomizeButtonLabel();
+
+    this.clearAgeGroupError();
+
+    this.closeAgeGroupPanel();
 
 };
 

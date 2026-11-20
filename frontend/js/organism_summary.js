@@ -52,6 +52,16 @@ OrganismSummary.cacheElements = function () {
             "organismDistributionBody"
         );
 
+    this.cultureGroupsContainer =
+        document.getElementById(
+            "culturePositivityGroups"
+        );
+
+    this.organismBySampleContainer =
+        document.getElementById(
+            "organismDistributionBySample"
+        );
+
     this.filtersAppliedText =
         document.getElementById(
             "filtersAppliedText"
@@ -214,7 +224,7 @@ OrganismSummary.loadSummary = async function () {
 
    IMPORTANT:
 
-   District, block and sample_type are now
+   District, block, sample_type and organisms are
    multi-select filters.
 
    Example:
@@ -226,7 +236,7 @@ OrganismSummary.loadSummary = async function () {
 
    district=Udupi,Dakshina%20Kannada
 
-   NEW: from_month / to_month ("YYYY-MM") are sent
+   from_month / to_month ("YYYY-MM") are sent
    only when a month has been chosen.
    ========================================================== */
 
@@ -237,7 +247,7 @@ OrganismSummary.buildQueryString = function () {
 
 
     /* ==================================================
-       TIME DURATION (MONTH-YEAR)   <-- NEW
+       TIME DURATION (MONTH-YEAR)
        ================================================== */
 
     if (this.filters.from_month) {
@@ -373,6 +383,41 @@ OrganismSummary.buildQueryString = function () {
     });
 
 
+    /* ==================================================
+       ORGANISMS
+       ================================================== */
+
+    const organisms =
+        Array.isArray(this.filters.organisms)
+
+            ? this.filters.organisms
+
+            : [this.filters.organisms];
+
+
+    organisms.forEach(organism => {
+
+        if (
+
+            organism &&
+
+            organism.toLowerCase() !== "all"
+
+        ) {
+
+            params.append(
+
+                "organisms",
+
+                organism
+
+            );
+
+        }
+
+    });
+
+
     return "?" + params.toString();
 
 };
@@ -391,9 +436,23 @@ OrganismSummary.render = function () {
     );
 
 
+    this.renderCulturePositivityGroups(
+
+        this.data.culture_positivity_groups || []
+
+    );
+
+
     this.renderOrganismDistribution(
 
         this.data.organism_distribution || []
+
+    );
+
+
+    this.renderOrganismDistributionBySample(
+
+        this.data.organism_distribution_by_sample || []
 
     );
 
@@ -408,7 +467,7 @@ OrganismSummary.render = function () {
 
 
 /* ==========================================================
-   RENDER CULTURE POSITIVITY TABLE
+   RENDER CULTURE POSITIVITY TABLE (CUMULATIVE)
    ========================================================== */
 
 OrganismSummary.renderCulturePositivity = function (data) {
@@ -516,6 +575,655 @@ OrganismSummary.renderCulturePositivity = function (data) {
         ])
 
     );
+
+};
+
+
+/* ==========================================================
+   RENDER TABLE 1 GROUPS (SAMPLE TYPE × ORGANISM)
+   ========================================================== */
+
+OrganismSummary.renderCulturePositivityGroups = function (groups) {
+
+    if (!this.cultureGroupsContainer) {
+
+        return;
+
+    }
+
+
+    this.cultureGroupsContainer.innerHTML = "";
+
+
+    if (
+        !groups ||
+        groups.length === 0
+    ) {
+
+        return;
+
+    }
+
+
+    groups.forEach(group => {
+
+        const section =
+            document.createElement("section");
+
+        section.className =
+            "report-card";
+
+
+        /* ------------------------------------------
+           GROUP HEADER
+        ------------------------------------------ */
+
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "card-header";
+
+
+        const headerInner =
+            document.createElement("div");
+
+
+        const heading =
+            document.createElement("h3");
+
+        heading.textContent =
+            "Sample Type: " +
+            (group.sample_type || "Unspecified");
+
+
+        const subtitle =
+            document.createElement("p");
+
+        subtitle.textContent =
+            "Total cultures: " +
+            this.formatNumber(group.total_cultures);
+
+
+        headerInner.appendChild(heading);
+
+        headerInner.appendChild(subtitle);
+
+        header.appendChild(headerInner);
+
+        section.appendChild(header);
+
+
+        /* ------------------------------------------
+           ONE SUB-TABLE PER { title, rows }
+        ------------------------------------------ */
+
+        (group.tables || []).forEach(entry => {
+
+            const wrapper =
+                document.createElement("div");
+
+            wrapper.className =
+                "table-container";
+
+
+            const subTitle =
+                document.createElement("h4");
+
+            subTitle.style.margin =
+                "0 0 10px 0";
+
+            subTitle.style.fontSize =
+                "14px";
+
+            subTitle.style.fontWeight =
+                "600";
+
+            subTitle.textContent =
+                entry.title || "";
+
+
+            wrapper.appendChild(subTitle);
+
+            wrapper.appendChild(
+
+                this.buildPositivitySubTable(
+                    entry.rows
+                )
+
+            );
+
+
+            section.appendChild(wrapper);
+
+        });
+
+
+        this.cultureGroupsContainer.appendChild(section);
+
+    });
+
+};
+
+
+/* ==========================================================
+   BUILD ONE TABLE 1 SUB-TABLE
+   ========================================================== */
+
+OrganismSummary.buildPositivitySubTable = function (rows) {
+
+    const table =
+        document.createElement("table");
+
+    table.className =
+        "summary-table";
+
+
+    /* ------------------------------------------
+       HEADER
+    ------------------------------------------ */
+
+    const thead =
+        document.createElement("thead");
+
+    const headerRow =
+        document.createElement("tr");
+
+
+    [
+        { label: "Result",         width: "45%" },
+        { label: "Count (n)",      width: "25%" },
+        { label: "Percentage (%)", width: "30%" }
+    ].forEach(column => {
+
+        const th =
+            document.createElement("th");
+
+        th.style.width =
+            column.width;
+
+        th.textContent =
+            column.label;
+
+        headerRow.appendChild(th);
+
+    });
+
+
+    thead.appendChild(headerRow);
+
+    table.appendChild(thead);
+
+
+    /* ------------------------------------------
+       BODY
+    ------------------------------------------ */
+
+    const tbody =
+        document.createElement("tbody");
+
+
+    let totalCount = 0;
+
+
+    (rows || []).forEach(item => {
+
+        const row =
+            document.createElement("tr");
+
+
+        row.appendChild(
+
+            this.createCell(
+                item.Result
+            )
+
+        );
+
+
+        row.appendChild(
+
+            this.createNumberCell(
+                item.Count
+            )
+
+        );
+
+
+        row.appendChild(
+
+            this.createPercentageCell(
+                item.Percentage
+            )
+
+        );
+
+
+        tbody.appendChild(row);
+
+
+        totalCount +=
+            (Number(item.Count) || 0);
+
+    });
+
+
+    tbody.appendChild(
+
+        this.createTotalRow([
+
+            "Total",
+
+            this.formatNumber(
+                totalCount
+            ),
+
+            this.formatPercentage(100)
+
+        ])
+
+    );
+
+
+    table.appendChild(tbody);
+
+
+    return table;
+
+};
+
+
+/* ==========================================================
+   RENDER ORGANISM DISTRIBUTION TABLE (CUMULATIVE)
+   ========================================================== */
+
+OrganismSummary.renderOrganismDistribution = function (data) {
+
+    if (!this.organismBody) {
+
+        return;
+
+    }
+
+
+    this.organismBody.innerHTML = "";
+
+
+    if (
+        !data ||
+        data.length === 0
+    ) {
+
+        this.organismBody.appendChild(
+
+            this.createEmptyRow(
+
+                4,
+
+                "No organism distribution data available."
+
+            )
+
+        );
+
+        return;
+
+    }
+
+
+    data.forEach(
+
+        (item, index) => {
+
+            const row =
+                document.createElement("tr");
+
+
+            /* --------------------------------------
+               Sl. No.
+            -------------------------------------- */
+
+            row.appendChild(
+
+                this.createSlNoCell(
+
+                    index + 1
+
+                )
+
+            );
+
+
+            /* --------------------------------------
+               Organism
+            -------------------------------------- */
+
+            row.appendChild(
+
+                this.createCell(
+
+                    item.Organism
+
+                )
+
+            );
+
+
+            /* --------------------------------------
+               Count
+            -------------------------------------- */
+
+            row.appendChild(
+
+                this.createNumberCell(
+
+                    item.Count
+
+                )
+
+            );
+
+
+            /* --------------------------------------
+               Percentage
+            -------------------------------------- */
+
+            row.appendChild(
+
+                this.createPercentageCell(
+
+                    item.Percentage
+
+                )
+
+            );
+
+
+            this.organismBody.appendChild(row);
+
+        }
+
+    );
+
+
+    /* ----------------------------------------------
+       TOTAL ROW
+    ---------------------------------------------- */
+
+    const totalCount =
+
+        data.reduce(
+
+            (sum, item) =>
+
+                sum +
+                (Number(item.Count) || 0),
+
+            0
+
+        );
+
+
+    this.organismBody.appendChild(
+
+        this.createTotalRow([
+
+            "",
+
+            "Total",
+
+            this.formatNumber(
+                totalCount
+            ),
+
+            this.formatPercentage(100)
+
+        ])
+
+    );
+
+};
+
+
+/* ==========================================================
+   RENDER TABLE 2 PER SAMPLE TYPE
+   ========================================================== */
+
+OrganismSummary.renderOrganismDistributionBySample = function (data) {
+
+    if (!this.organismBySampleContainer) {
+
+        return;
+
+    }
+
+
+    this.organismBySampleContainer.innerHTML = "";
+
+
+    if (
+        !data ||
+        data.length === 0
+    ) {
+
+        return;
+
+    }
+
+
+    data.forEach(item => {
+
+        const section =
+            document.createElement("section");
+
+        section.className =
+            "report-card";
+
+
+        /* ------------------------------------------
+           HEADER
+        ------------------------------------------ */
+
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "card-header";
+
+
+        const headerInner =
+            document.createElement("div");
+
+
+        const heading =
+            document.createElement("h3");
+
+        heading.textContent =
+            "Sample Type: " +
+            (item.sample_type || "Unspecified");
+
+
+        const subtitle =
+            document.createElement("p");
+
+        subtitle.textContent =
+            "Positive cultures with identified organism: " +
+            this.formatNumber(item.total_positive);
+
+
+        headerInner.appendChild(heading);
+
+        headerInner.appendChild(subtitle);
+
+        header.appendChild(headerInner);
+
+        section.appendChild(header);
+
+
+        /* ------------------------------------------
+           SUB-TABLE
+        ------------------------------------------ */
+
+        const wrapper =
+            document.createElement("div");
+
+        wrapper.className =
+            "table-container";
+
+
+        wrapper.appendChild(
+
+            this.buildOrganismDistributionSubTable(
+                item.rows
+            )
+
+        );
+
+
+        section.appendChild(wrapper);
+
+        this.organismBySampleContainer.appendChild(section);
+
+    });
+
+};
+
+
+/* ==========================================================
+   BUILD ONE TABLE 2 SUB-TABLE
+   ========================================================== */
+
+OrganismSummary.buildOrganismDistributionSubTable = function (rows) {
+
+    const table =
+        document.createElement("table");
+
+    table.className =
+        "summary-table";
+
+
+    /* ------------------------------------------
+       HEADER
+    ------------------------------------------ */
+
+    const thead =
+        document.createElement("thead");
+
+    const headerRow =
+        document.createElement("tr");
+
+
+    [
+        { label: "Sl. No.",        width: "10%" },
+        { label: "Organism",       width: "45%" },
+        { label: "Count (n)",      width: "20%" },
+        { label: "Percentage (%)", width: "25%" }
+    ].forEach(column => {
+
+        const th =
+            document.createElement("th");
+
+        th.style.width =
+            column.width;
+
+        th.textContent =
+            column.label;
+
+        headerRow.appendChild(th);
+
+    });
+
+
+    thead.appendChild(headerRow);
+
+    table.appendChild(thead);
+
+
+    /* ------------------------------------------
+       BODY
+    ------------------------------------------ */
+
+    const tbody =
+        document.createElement("tbody");
+
+
+    let totalCount = 0;
+
+
+    (rows || []).forEach((item, index) => {
+
+        const row =
+            document.createElement("tr");
+
+
+        row.appendChild(
+
+            this.createSlNoCell(
+                index + 1
+            )
+
+        );
+
+
+        row.appendChild(
+
+            this.createCell(
+                item.Organism
+            )
+
+        );
+
+
+        row.appendChild(
+
+            this.createNumberCell(
+                item.Count
+            )
+
+        );
+
+
+        row.appendChild(
+
+            this.createPercentageCell(
+                item.Percentage
+            )
+
+        );
+
+
+        tbody.appendChild(row);
+
+
+        totalCount +=
+            (Number(item.Count) || 0);
+
+    });
+
+
+    tbody.appendChild(
+
+        this.createTotalRow([
+
+            "",
+
+            "Total",
+
+            this.formatNumber(
+                totalCount
+            ),
+
+            this.formatPercentage(100)
+
+        ])
+
+    );
+
+
+    table.appendChild(tbody);
+
+
+    return table;
 
 };
 
@@ -719,158 +1427,6 @@ OrganismSummary.createEmptyRow = function (
 
 
 /* ==========================================================
-   RENDER ORGANISM DISTRIBUTION TABLE
-   ========================================================== */
-
-OrganismSummary.renderOrganismDistribution = function (data) {
-
-    if (!this.organismBody) {
-
-        return;
-
-    }
-
-
-    this.organismBody.innerHTML = "";
-
-
-    if (
-        !data ||
-        data.length === 0
-    ) {
-
-        this.organismBody.appendChild(
-
-            this.createEmptyRow(
-
-                4,
-
-                "No organism distribution data available."
-
-            )
-
-        );
-
-        return;
-
-    }
-
-
-    data.forEach(
-
-        (item, index) => {
-
-            const row =
-                document.createElement("tr");
-
-
-            /* --------------------------------------
-               Sl. No.
-            -------------------------------------- */
-
-            row.appendChild(
-
-                this.createSlNoCell(
-
-                    index + 1
-
-                )
-
-            );
-
-
-            /* --------------------------------------
-               Organism
-            -------------------------------------- */
-
-            row.appendChild(
-
-                this.createCell(
-
-                    item.Organism
-
-                )
-
-            );
-
-
-            /* --------------------------------------
-               Count
-            -------------------------------------- */
-
-            row.appendChild(
-
-                this.createNumberCell(
-
-                    item.Count
-
-                )
-
-            );
-
-
-            /* --------------------------------------
-               Percentage
-            -------------------------------------- */
-
-            row.appendChild(
-
-                this.createPercentageCell(
-
-                    item.Percentage
-
-                )
-
-            );
-
-
-            this.organismBody.appendChild(row);
-
-        }
-
-    );
-
-
-    /* ----------------------------------------------
-       TOTAL ROW
-    ---------------------------------------------- */
-
-    const totalCount =
-
-        data.reduce(
-
-            (sum, item) =>
-
-                sum +
-                (Number(item.Count) || 0),
-
-            0
-
-        );
-
-
-    this.organismBody.appendChild(
-
-        this.createTotalRow([
-
-            "",
-
-            "Total",
-
-            this.formatNumber(
-                totalCount
-            ),
-
-            this.formatPercentage(100)
-
-        ])
-
-    );
-
-};
-
-
-/* ==========================================================
    UPDATE FILTERS-APPLIED INFO STRIP
    ========================================================== */
 
@@ -926,7 +1482,7 @@ OrganismSummary.updateInfoStrip =
 
 
             /* ------------------------------------------
-               NEW: format "YYYY-MM" as "Jan 2025"
+               Format "YYYY-MM" as "Jan 2025"
             ------------------------------------------ */
 
             const formatMonth = function (value) {
@@ -975,7 +1531,7 @@ OrganismSummary.updateInfoStrip =
 
 
             /* ------------------------------------------
-               NEW: period text
+               Period text
             ------------------------------------------ */
 
             let period = "All";
@@ -1031,6 +1587,12 @@ OrganismSummary.updateInfoStrip =
 
                 formatFilter(
                     filters.sample_type
+                ) +
+
+                "  |  Organisms: " +
+
+                formatFilter(
+                    filters.organisms
                 );
 
         }
@@ -1113,6 +1675,20 @@ OrganismSummary.clearTables = function () {
     if (this.organismBody) {
 
         this.organismBody.innerHTML = "";
+
+    }
+
+
+    if (this.cultureGroupsContainer) {
+
+        this.cultureGroupsContainer.innerHTML = "";
+
+    }
+
+
+    if (this.organismBySampleContainer) {
+
+        this.organismBySampleContainer.innerHTML = "";
 
     }
 
