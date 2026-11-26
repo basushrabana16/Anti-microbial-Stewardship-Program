@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import numpy as np
 
@@ -11,6 +13,64 @@ VALID_SUSCEPTIBILITY_RESULTS = {
     "intermediate",
     "resistant"
 }
+
+
+# =====================================================
+# AGE GROUP ORDERING
+#
+# crosstab() sorts labels as TEXT, which puts
+# "30-60" before "<30" and ">60", and "10-19" before
+# "5-9". Age groups must be ordered by their lower
+# bound instead:
+#
+#     "<30"    -> first   (open lower end)
+#     "30-60"  -> by its first number (30)
+#     "61-80"  -> by its first number (61)
+#     ">60"    -> last    (open upper end)
+#
+# Works for the default bins (<30 / 30-60 / >60) and
+# for custom bins ("0-17", "18-40", "41-65", ...).
+# =====================================================
+
+AGE_GROUP_COLUMN = "age_group"
+
+
+def _age_label_sort_key(label):
+
+    text = str(label).strip().lower()
+
+    match = re.search(
+        r"\d+(?:\.\d+)?",
+        text
+    )
+
+    number = float(match.group()) if match else 0.0
+
+    # Open lower end: "<30", "<=29"
+    if text.startswith("<"):
+        return (0, number, text)
+
+    # Open upper end: ">60", ">=61"
+    if text.startswith(">") or text.startswith("\u2265"):
+        return (2, number, text)
+
+    # Closed range or single value: "30-60", "60+"
+    if match:
+        return (1, number, text)
+
+    # Anything that is not recognisable goes last
+    return (3, 0.0, text)
+
+
+def order_age_group_labels(labels):
+    """
+    Returns the age-group labels sorted by lower bound.
+    """
+
+    return sorted(
+        list(labels),
+        key=_age_label_sort_key
+    )
 
 
 # =====================================================
@@ -105,6 +165,8 @@ def clean_test_dataframe(
             return None
 
     return test_df
+
+
 # =====================================================
 # BUILD CONTINGENCY TABLE
 # =====================================================
@@ -132,6 +194,21 @@ def build_contingency_table(
 
     if table is None or table.empty:
         return None
+
+    # -------------------------------------------------
+    # AGE GROUP: order rows by lower bound, not
+    # alphabetically. Expected frequencies, row
+    # percentages and totals are all derived from this
+    # table, so they inherit the same order.
+    # -------------------------------------------------
+
+    if independent_variable == AGE_GROUP_COLUMN:
+
+        table = table.reindex(
+            order_age_group_labels(
+                table.index.tolist()
+            )
+        )
 
     return table
 

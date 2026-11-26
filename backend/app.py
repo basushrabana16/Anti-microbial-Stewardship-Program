@@ -57,6 +57,8 @@ from services.data_loader import (
 
 
 app = Flask(__name__)
+app.json.sort_keys = False      # Flask 2.2+
+# older Flask:  app.config["JSON_SORT_KEYS"] = False
 CORS(app)
 
 
@@ -380,6 +382,15 @@ def organisms():
         sample_types = request.args.getlist("sample_type")
 
         # =================================================
+        # READ SELECTED ORGANISMS   (NEW)
+        #
+        # Empty list = "All organisms".
+        # "all" entries are ignored by the service.
+        # =================================================
+
+        selected_organisms = request.args.getlist("organisms")
+
+        # =================================================
         # READ MONTH-YEAR RANGE
         # =================================================
 
@@ -411,6 +422,8 @@ def organisms():
 
             sample_type=sample_types,
 
+            organisms=selected_organisms,
+
             from_month=from_month,
 
             to_month=to_month
@@ -427,7 +440,6 @@ def organisms():
                 f"Could not generate organism summary: {str(e)}"
 
         }), 500
-
     
 # =====================================================
 # ASSOCIATION OPTIONS
@@ -462,7 +474,6 @@ def association_options():
             "to_month"
         )
 
-
         result = get_association_options(
 
             district=district,
@@ -479,9 +490,7 @@ def association_options():
 
         )
 
-
         return jsonify(result)
-
 
     except Exception as e:
 
@@ -503,7 +512,6 @@ def association_test():
     data = request.get_json(
         silent=True
     ) or {}
-
 
     try:
 
@@ -527,7 +535,12 @@ def association_test():
             data.get("antibiotics")
         )
 
-        age_groups = data.get("age_groups")
+        raw_age_groups = data.get("age_groups")
+        age_groups = (
+            raw_age_groups
+            if isinstance(raw_age_groups, list) and len(raw_age_groups) > 0
+            else None
+        )
 
         from_month = get_body_month(
             data,
@@ -538,7 +551,6 @@ def association_test():
             data,
             "to_month"
         )
-
 
         result = run_association_test(
 
@@ -568,16 +580,13 @@ def association_test():
 
         )
 
-
         status = (
             400
             if "error" in result
             else 200
         )
 
-
         return jsonify(result), status
-
 
     except Exception as e:
 

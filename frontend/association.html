@@ -633,7 +633,7 @@
                 </span>
             </label>
 
-            <div
+                        <div
                 class="multi-select"
                 id="independentVariableFilter">
 
@@ -652,11 +652,8 @@
                 </div>
             </div>
 
-            <!-- ========================================== -->
-            <!-- CUSTOMIZE AGE GROUPS — visible only when   -->
-            <!-- independent variable = age_group           -->
-            <!-- ========================================== -->
-
+            <!-- CUSTOMIZE AGE GROUPS — visible only when -->
+            <!-- "age_group" is the independent variable -->
             <button
                 type="button"
                 id="customizeAgeGroupsBtn"
@@ -666,10 +663,7 @@
                 Customize Age Groups
 
             </button>
-
         </div>
-
-
 
         <div class="filter-group">
 
@@ -806,12 +800,8 @@
 </section>
 
 
-
 <!-- ===================================================== -->
 <!-- CUSTOM AGE GROUPS PANEL -->
-<!-- Visible only when the user clicks                    -->
-<!-- "Customize Age Groups" while the independent        -->
-<!-- variable is age_group.                               -->
 <!-- ===================================================== -->
 
 <section
@@ -836,7 +826,9 @@
                 year greater than the previous group’s maximum.
 
             </p>
+
         </div>
+
     </div>
 
     <div
@@ -851,6 +843,12 @@
         style="margin-bottom:16px;">
 
         <!-- Rows rendered by association_tests.js -->
+
+    </div>
+
+    <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
+
+        Define between 2 and 5 age groups. Groups must not overlap.
 
     </div>
 
@@ -1054,6 +1052,30 @@
             </tbody>
         </table>
     </div>
+</section>
+
+
+<!-- ===================================================== -->
+<!-- CHI-SQUARE TEST FOR TREND (age_group x culture_result) -->
+<!-- ===================================================== -->
+<section class="report-card" id="trendTestCard" style="display:none;">
+    <div class="card-header">
+        <div>
+            <h2>Table 2. Chi-Square Test for Trend</h2>
+            <p>
+                Tests whether the proportion of positive cultures rises or falls
+                steadily across the ordered age groups (Cochran–Armitage).
+            </p>
+        </div>
+    </div>
+    <div class="table-container" id="trendTableWrap">
+        <table class="summary-table association-table">
+            <thead id="trendTableHead"></thead>
+            <tbody id="trendTableBody"></tbody>
+        </table>
+    </div>
+    <p id="trendTestSummary" class="message info" style="margin-top:12px;"></p>
+    <p id="trendTestWarning" style="display:none; margin-top:8px; color:#b45309; font-size:13px;"></p>
 </section>
 
 
@@ -1270,16 +1292,6 @@
             each individual antibiotic (statistical inference).
 
         </li>
-
-        <li>
-
-            When <strong>Age Group</strong> is selected as the independent
-            variable, custom age ranges (2 to 5 contiguous groups) can be
-            defined. If no customization is applied, the default bins
-            (&lt;30, 30-60, &gt;60) are used.
-
-        </li>
-
     </ul>
 </section>
 

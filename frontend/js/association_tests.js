@@ -60,10 +60,15 @@ const AssociationTests = {
 AssociationTests.initialize = function () {
 
     this.cacheElements();
-
     this.cacheVariableControls();
-
     this.registerEvents();
+    this.updateAgeGroupUI();
+    this.trendCard    = document.getElementById("trendTestCard");
+    this.trendHead    = document.getElementById("trendTableHead");
+    this.trendBody    = document.getElementById("trendTableBody");
+    this.trendWrap    = document.getElementById("trendTableWrap");
+    this.trendSummary = document.getElementById("trendTestSummary");
+    this.trendWarning = document.getElementById("trendTestWarning");
 
 };
 
@@ -677,6 +682,8 @@ AssociationTests.render = function (result) {
     this.renderAssumptions(result);
 
     this.renderInterpretation(result);
+
+    this.renderTrendTest(result);
 
     this.updateInfoStrip(result);
 
@@ -1301,6 +1308,133 @@ AssociationTests.renderInterpretation = function (result) {
 
 
 /* ==========================================================
+   CHI-SQUARE TEST FOR TREND
+   Backend sends result.trend_test only for
+   age_group x culture_result.
+   Layout matches Table 1: Test | Statistic | df | p-value
+   are row-spanning, centered cells on the right.
+   ========================================================== */
+AssociationTests.renderTrendTest = function (result) {
+
+    if (!this.trendCard) return;
+
+    const trend = result ? result.trend_test : null;
+
+    if (!trend) {
+        this.trendCard.style.display = "none";
+        return;
+    }
+
+    this.trendCard.style.display = "";
+
+    const computed =
+        trend.test_statistic !== null &&
+        trend.test_statistic !== undefined;
+
+    // ---- warning (shown whether or not the test ran) ----
+    if (this.trendWarning) {
+        this.trendWarning.textContent = trend.warning || "";
+        this.trendWarning.style.display = trend.warning ? "" : "none";
+    }
+
+    // ---- test could not be computed: show only the warning ----
+    if (!computed) {
+        if (this.trendWrap)    this.trendWrap.style.display = "none";
+        if (this.trendSummary) this.trendSummary.style.display = "none";
+        return;
+    }
+
+    if (this.trendWrap)    this.trendWrap.style.display = "";
+    if (this.trendSummary) this.trendSummary.style.display = "";
+
+    // ---- header ----
+    this.trendHead.innerHTML = "";
+    const headerRow = document.createElement("tr");
+    [
+        "Age Group", "Score", "n", "Positive (n)", "Positive (%)",
+        "Test", "Statistic", "df", "p-value"
+    ].forEach(text =>
+        headerRow.appendChild(this.createHeaderCell(text))
+    );
+    this.trendHead.appendChild(headerRow);
+
+    // ---- one row per ordered group ----
+    this.trendBody.innerHTML = "";
+
+    const groups = trend.groups || [];
+
+    groups.forEach((group, index) => {
+
+        const row = document.createElement("tr");
+
+        const label = document.createElement("td");
+        label.textContent = this.formatLabel(group.group);
+        row.appendChild(label);
+
+        row.appendChild(this.createDataCell(group.score));
+        row.appendChild(this.createDataCell(group.n));
+        row.appendChild(this.createDataCell(group.events));
+        row.appendChild(this.createDataCell(
+            group.percent === null || group.percent === undefined
+                ? "—"
+                : group.percent.toFixed(2) + "%"
+        ));
+
+        // Test result cells: only on the first row,
+        // spanning every group row (same as Table 1).
+        if (index === 0) {
+
+            row.appendChild(
+                this.createStatCell("Chi-square for trend", groups.length)
+            );
+
+            row.appendChild(
+                this.createStatCell(
+                    Number(trend.test_statistic).toFixed(4),
+                    groups.length
+                )
+            );
+
+            row.appendChild(
+                this.createStatCell(
+                    trend.degrees_of_freedom,
+                    groups.length
+                )
+            );
+
+            row.appendChild(
+                this.createStatCell(
+                    this.formatPValue(trend.p_value),
+                    groups.length
+                )
+            );
+        }
+
+        this.trendBody.appendChild(row);
+    });
+
+    // ---- plain-language summary ----
+    if (this.trendSummary) {
+
+        const significant =
+            trend.p_value !== null &&
+            trend.p_value !== undefined &&
+            trend.p_value < 0.05;
+
+        const direction =
+            trend.direction === "increasing" ? "increases" :
+            trend.direction === "decreasing" ? "decreases" :
+            "does not change";
+
+        this.trendSummary.textContent = significant
+            ? "There is a statistically significant linear trend: the proportion of positive cultures " +
+              direction + " across the ordered age groups."
+            : "There is no statistically significant linear trend in the proportion of positive cultures " +
+              "across the ordered age groups.";
+    }
+};
+
+/* ==========================================================
    PER-ANTIBIOTIC RESULTS CONTAINER
    ========================================================== */
 
@@ -1718,6 +1852,10 @@ AssociationTests.resetResults = function () {
         this.reportGeneratedValue.textContent = "—";
     }
 
+    if (this.trendCard) {
+        this.trendCard.style.display = "none";
+    }
+
     this.clearPerAntibioticResults();
 
 };
@@ -1813,7 +1951,6 @@ AssociationTests.attachAgeGroupEvents = function () {
 
 /* ==========================================================
    CUSTOM AGE GROUPS — DEFAULT ROWS
-   Matches the backend's default bins (<30 / 30-60 / >60).
    ========================================================== */
 
 AssociationTests.defaultAgeGroupRows = function () {
@@ -1821,7 +1958,7 @@ AssociationTests.defaultAgeGroupRows = function () {
     return [
         { min: 0,  max: 29  },
         { min: 30, max: 60  },
-        { min: 61, max: 150 }
+        { min: 61, max: 90 }
     ];
 
 };

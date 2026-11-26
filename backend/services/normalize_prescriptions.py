@@ -73,9 +73,23 @@ def get_report_numbers(columns):
     return sorted(reports)
 
 
+
+
 # =====================================================
 # DETECT ANTIBIOTIC COLUMNS
 # =====================================================
+
+# Columns that look like "<name>_1" but are NOT antibiotics:
+# the prescription drug-evaluation fields of the prescriptions
+# table (d_name_1, d_dose_1, da_route_1, da_aware_1, ...).
+NON_ANTIBIOTIC_PREFIXES = (
+
+    "d_",
+
+    "da_"
+
+)
+
 
 def get_antibiotic_columns(columns):
     """
@@ -90,6 +104,10 @@ def get_antibiotic_columns(columns):
 
         ciprofloxacin
         amikacin
+
+    Report meta columns (sample_id_1, culture_result_1, ...) and
+    the prescription drug-evaluation columns (d_*, da_*) are
+    excluded.
     """
 
     antibiotics = []
@@ -101,11 +119,17 @@ def get_antibiotic_columns(columns):
 
         base = column[:-2]
 
-        if base not in REPORT_COLUMNS:
+        if base in REPORT_COLUMNS:
+            continue
 
-            antibiotics.append(base)
+        if base.startswith(NON_ANTIBIOTIC_PREFIXES):
+            continue
+
+        antibiotics.append(base)
 
     return sorted(antibiotics)
+
+
 
 
 # =====================================================

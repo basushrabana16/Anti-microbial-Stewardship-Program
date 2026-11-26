@@ -3,7 +3,8 @@
 # =====================================================
 
 import pandas as pd
-
+# In regression_metadata.py, replace the local def with:
+from services.association_metadata import apply_custom_age_groups
 
 # =====================================================
 # INDEPENDENT VARIABLES
@@ -21,11 +22,7 @@ INDEPENDENT_VARIABLES = [
 
     "sample_type",
 
-    "referred_by",
 
-    "collection_month",
-
-    "collection_season"
 
 ]
 
@@ -76,6 +73,28 @@ VARIABLE_TYPES = {
         "categorical"
 
 }
+
+
+# =====================================================
+# CUSTOMIZABLE VARIABLES
+# =====================================================
+#
+# Variables that support user-defined customization.
+#
+# Today only age_group: the user may supply 2–5
+# contiguous, non-overlapping age ranges which replace
+# the default <30 / 30-60 / >60 bins before fitting.
+#
+# The frontend reads this list to decide which variables
+# show a "Customize" button. No hardcoding in JS.
+#
+# =====================================================
+
+CUSTOMIZABLE_VARIABLES = [
+
+    "age_group"
+
+]
 
 
 # =====================================================
@@ -911,6 +930,9 @@ def get_regression_options(
 
         "variable_types":
             VARIABLE_TYPES.copy(),
+
+        "customizable_variables":
+            CUSTOMIZABLE_VARIABLES.copy(),
 
         "automatic_model_selection":
             True,

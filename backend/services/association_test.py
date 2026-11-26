@@ -15,13 +15,14 @@ from services.association_helpers import (
     calculate_expected_frequencies,
     calculate_row_percentages,
     evaluate_assumptions,
-    calculate_totals
+    calculate_totals,
 )
 
 from services.association_statistics import (
     run_chi_square_test,
     run_fisher_exact_test,
-    run_fisher_freeman_halton_test
+    run_fisher_freeman_halton_test,
+    run_chi_square_trend_test,
 )
 
 
@@ -36,10 +37,6 @@ INDEPENDENT_VARIABLES = [
     "district",
     "block",
     "sample_type",
-    "referred_by",
-    "collection_month",
-    "collection_season"
-
 ]
 
 
@@ -53,6 +50,24 @@ DEPENDENT_VARIABLES = [
 
 
 # =====================================================
+# CHI-SQUARE TEST FOR TREND
+#
+# Run ONLY for this exact combination:
+#
+#     independent variable : age_group   (ordered)
+#     dependent variable   : culture_result (binary)
+#
+# The event category is the "positive" culture.
+# =====================================================
+
+TREND_INDEPENDENT_VARIABLE = "age_group"
+
+TREND_DEPENDENT_VARIABLE = "culture_result"
+
+TREND_EVENT_CATEGORY = "positive"
+
+
+# =====================================================
 # PIPELINE FOR ONE CROSSTAB
 # =====================================================
 
@@ -61,6 +76,10 @@ def _evaluate_crosstab(df, indep_var, dep_col):
     Runs the full association pipeline on a single dependent
     column: crosstab → expected frequencies → row % →
     assumptions → automatic test selection → statistics.
+
+    For age_group x culture_result it also runs the
+    chi-square test for trend and returns it under
+    "trend_test".
 
     Returns a dict with the full result, or
     {"error": "..."} if the crosstab cannot be built.
@@ -170,7 +189,7 @@ def _evaluate_crosstab(df, indep_var, dep_col):
                 "Fisher-Freeman-Halton test used."
             )
 
-    return {
+    result = {
 
         "total_records":
             int(contingency_table.values.sum()),
@@ -216,9 +235,45 @@ def _evaluate_crosstab(df, indep_var, dep_col):
             totals["grand_total"],
 
         "assumptions":
-            assumptions
+            assumptions,
+
+        # -------------------------------------------------
+        # EXPLICIT ORDER
+        #
+        # JSON objects have no reliable key order (Flask
+        # sorts keys by default), so the display order of
+        # rows and columns is sent explicitly. For
+        # age_group the rows are already ordered by lower
+        # bound (see build_contingency_table).
+        # -------------------------------------------------
+
+        "row_order":
+            [str(label) for label in contingency_table.index],
+
+        "column_order":
+            [str(label) for label in contingency_table.columns]
 
     }
+
+    # =================================================
+    # CHI-SQUARE TEST FOR TREND
+    # =================================================
+
+    if (
+        indep_var == TREND_INDEPENDENT_VARIABLE
+        and
+        dep_col == TREND_DEPENDENT_VARIABLE
+    ):
+
+        result["trend_test"] = run_chi_square_trend_test(
+
+            contingency_table,
+
+            event_category=TREND_EVENT_CATEGORY
+
+        )
+
+    return result
 
 
 # =====================================================
@@ -555,7 +610,7 @@ def run_association_test(
 
 
 # =====================================================
-# ASSOCIATION SUMMARY (unchanged)
+# ASSOCIATION SUMMARY
 # =====================================================
 
 def get_association_summary():
@@ -578,6 +633,14 @@ def get_association_summary():
 
             "otherwise":
                 "Chi-square Test"
+
+        },
+
+        "additional_tests": {
+
+            "age_group x culture_result":
+                "Chi-square test for trend (Cochran-Armitage), "
+                "shown in addition to the main test"
 
         }
 

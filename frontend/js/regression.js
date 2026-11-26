@@ -1324,6 +1324,57 @@ Regression.runRegression = async function () {
    RENDER RESULTS
    ========================================================== */
 
+/* ==========================================================
+   UPDATE SINGLE-RESULT TABLE HEADING
+   ========================================================== */
+
+Regression.updateSingleResultTableHeading = function (result) {
+
+    const coeffCard = this.tableHead
+        ? this.tableHead.closest(".report-card")
+        : null;
+
+    if (!coeffCard) return;
+
+    const heading = coeffCard.querySelector(".card-header h2");
+    const subtitle = coeffCard.querySelector(".card-header p");
+
+    if (!heading) return;
+
+    const isAntibiogram =
+        this.selected.dependent === "antibiogram_susceptibility";
+
+    const antibiotic =
+        isAntibiogram && this.selected.antibiotics.length === 1
+            ? this.formatLabel(this.selected.antibiotics[0])
+            : null;
+
+    if (antibiotic) {
+
+        heading.textContent =
+            "Table 1. Regression Coefficients — " + antibiotic;
+
+        if (subtitle) {
+            subtitle.textContent =
+                "Outcome: susceptibility to " +
+                antibiotic +
+                " (resistant → intermediate → susceptible).";
+        }
+
+    } else {
+
+        heading.textContent =
+            "Table 1. Regression Coefficients";
+
+        if (subtitle) {
+            subtitle.textContent = "";
+        }
+
+    }
+
+};
+
+
 Regression.render = function (result) {
 
     this.lastResult = result;
@@ -1360,6 +1411,10 @@ Regression.render = function (result) {
 
     this.clearPerAntibioticResults();
 
+    // Update the table heading for a single selected
+    // antibiotic before rendering the coefficients.
+    this.updateSingleResultTableHeading(result);
+
     this.renderOutcomeDistribution(result);
 
     this.renderCoefficientsTable(result);
@@ -1383,7 +1438,6 @@ Regression.render = function (result) {
     this.updateInfoStrip(result);
 
 };
-
 
 Regression.hideSingleResultSections = function () {
 
@@ -2399,29 +2453,7 @@ Regression.renderPerAntibioticResults = function (result) {
 
     }
 
-    // Page-level heading
-    const header = document.createElement("section");
-    header.className = "report-card";
-
-    const headerInner = document.createElement("div");
-    headerInner.className = "card-header";
-
-    const headerDiv = document.createElement("div");
-
-    const title = document.createElement("h2");
-    title.textContent = "Table 1. Per-Antibiotic Ordinal Logistic Regression";
-
-    const subtitle = document.createElement("p");
-    subtitle.textContent =
-        "Separate ordinal logistic regression model for each selected antibiotic. " +
-        "Each model uses the susceptibility outcome (resistant / intermediate / susceptible) " +
-        "of that antibiotic; no pooled model is produced.";
-
-    headerDiv.appendChild(title);
-    headerDiv.appendChild(subtitle);
-    headerInner.appendChild(headerDiv);
-    header.appendChild(headerInner);
-    container.appendChild(header);
+    
 
     // One card per antibiotic
     antibioticEntries.forEach(([antibiotic, entry], index) => {
@@ -2436,7 +2468,7 @@ Regression.renderPerAntibioticResults = function (result) {
 
         const cardTitle = document.createElement("h2");
         cardTitle.textContent =
-            "Table " + (index + 1) + ". Ordinal Logistic Regression — " +
+            "Table " + (index + 1) + ". Regression Coefficients — " +
             this.formatLabel(antibiotic);
 
         const cardSubtitle = document.createElement("p");
@@ -2519,11 +2551,24 @@ Regression.renderPerAntibioticResults = function (result) {
    STANDALONE DOM BUILDERS (for per-antibiotic cards)
    ========================================================== */
 
+Regression.getConvergenceStatus = function (entry) {
+
+    const stats = entry.statistics || {};
+
+    return entry.converged !== undefined
+        ? entry.converged
+        : stats.converged !== undefined
+            ? stats.converged
+            : entry.model_status?.converged;
+
+};
+
+
+
 Regression.buildCoefficientsTableDOM = function (entry) {
 
     const wrapper = document.createElement("div");
 
-    // Model fit strip
     const stats = entry.statistics || {};
 
     const strip = document.createElement("div");
@@ -2537,7 +2582,7 @@ Regression.buildCoefficientsTableDOM = function (entry) {
         { label: "N", value: formatNumber(stats.n || entry.n || 0) },
         {
             label: "Converged",
-            value: entry.converged ? "✅ Yes" : "❌ No"
+            value: this.getConvergenceStatus(entry) ? "✅ Yes" : "❌ No"
         }
     ];
 
@@ -2554,6 +2599,7 @@ Regression.buildCoefficientsTableDOM = function (entry) {
         val.textContent = item.value;
 
         stat.appendChild(lbl);
+        stat.appendChild(document.createTextNode(" "));
         stat.appendChild(val);
         strip.appendChild(stat);
     });
@@ -2693,8 +2739,10 @@ Regression.buildDiagnosticsTableDOM = function (entry) {
         ["BIC", this.formatNumberOrDash(stats.bic)],
         ["McFadden Pseudo R²", this.formatNumberOrDash(stats.mcfadden_pseudo_r_squared)],
         [
-            "Convergence Status",
-            entry.converged ? "Converged ✅" : "Did not converge ❌"
+         "Convergence Status",
+          this.getConvergenceStatus(entry)
+             ? "Converged ✅"
+             : "Did not converge ❌"
         ],
         ["Condition Number", this.formatNumberOrDash(diagnostics.condition_number)]
     ];
@@ -2716,6 +2764,11 @@ Regression.buildDiagnosticsTableDOM = function (entry) {
 
         const valueCell = document.createElement("td");
         valueCell.textContent = value;
+
+        if (label === "Convergence Status") {
+            const converged = this.getConvergenceStatus(entry);
+            valueCell.style.color = converged ? "#16a34a" : "#dc2626";
+        }
 
         tr.appendChild(labelCell);
         tr.appendChild(valueCell);
@@ -3204,7 +3257,7 @@ Regression.defaultAgeGroupRows = function () {
     return [
         { min: 0,  max: 29  },
         { min: 30, max: 60  },
-        { min: 61, max: 150 }
+        { min: 61, max: 90 }
     ];
 
 };

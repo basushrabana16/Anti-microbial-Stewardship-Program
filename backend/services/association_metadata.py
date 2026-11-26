@@ -263,9 +263,6 @@ def get_association_options(
         "district",
         "block",
         "sample_type",
-        "referred_by",
-        "collection_month",
-        "collection_season"
 
     ]
 
