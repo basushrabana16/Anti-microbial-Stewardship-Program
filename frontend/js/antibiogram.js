@@ -396,27 +396,32 @@ Antibiogram.renderTables = function () {
 
 
     /*
-       The backend now returns:
+       The backend returns:
 
            {
-               combined:  [ ...rows... ],     // all organisms pooled
-               organisms: { name: [ ...rows... ], ... }
+               overall: {              // all selected sample types pooled
+                   heading, samples_analysed,
+                   combined:  { title, samples_analysed, rows } | null,
+                   organisms: [ { title, samples_analysed, rows }, ... ]
+               },
+               sample_types: [         // one block per sample type
+                   { heading, samples_analysed, combined, organisms },
+                   ...
+               ]
            }
     */
 
-    const organismTables =
-        (this.data && this.data.organisms) || {};
+    const overall =
+        this.data && this.data.overall;
 
-    const combinedRows =
-        (this.data && this.data.combined) || [];
-
-    const organisms =
-        Object.keys(
-            organismTables
-        );
+    const sampleTypes =
+        (this.data && this.data.sample_types) || [];
 
 
-    if (organisms.length === 0) {
+    if (
+        !overall ||
+        !(overall.organisms || []).length
+    ) {
 
         this.container.appendChild(
 
@@ -434,46 +439,42 @@ Antibiogram.renderTables = function () {
 
 
     /* ------------------------------------------
-       NEW: combined table FIRST (only present when
-       two or more organisms are in the selection)
+       How to read "Samples analysed"
     ------------------------------------------ */
 
-    if (combinedRows.length > 0) {
+    this.container.appendChild(
 
-        this.container.appendChild(
+        this.createNote(
 
-            this.createOrganismSection(
+            "Samples analysed = number of positive culture " +
+            "reports included in a table. The Total column " +
+            "shows how many of them had a valid result for " +
+            "that antibiotic."
 
-                "All Selected Organisms (Combined)",
+        )
 
-                combinedRows
-
-            )
-
-        );
-
-    }
+    );
 
 
     /* ------------------------------------------
-       Organism-wise tables
+       Section 1: all selected sample types pooled
     ------------------------------------------ */
 
-    organisms.forEach(
+    this.renderBlock(
+        overall
+    );
 
-        organism => {
 
-            const section =
-                this.createOrganismSection(
+    /* ------------------------------------------
+       One section per sample type
+    ------------------------------------------ */
 
-                    organism,
+    sampleTypes.forEach(
 
-                    organismTables[organism]
+        block => {
 
-                );
-
-            this.container.appendChild(
-                section
+            this.renderBlock(
+                block
             );
 
         }
@@ -484,15 +485,190 @@ Antibiogram.renderTables = function () {
 
 
 /* ==========================================================
+   RENDER ONE BLOCK (heading + combined table + organism tables)
+   ========================================================== */
+
+Antibiogram.renderBlock = function (block) {
+
+    this.container.appendChild(
+
+        this.createBlockHeading(
+
+            block.heading,
+
+            block.samples_analysed
+
+        )
+
+    );
+
+
+    const combined =
+        block.combined;
+
+    if (
+        combined &&
+        (combined.rows || []).length > 0
+    ) {
+
+        this.container.appendChild(
+
+            this.createOrganismSection(
+
+                combined.title,
+
+                combined.rows,
+
+                combined.samples_analysed
+
+            )
+
+        );
+
+    }
+
+
+    (block.organisms || []).forEach(
+
+        table => {
+
+            this.container.appendChild(
+
+                this.createOrganismSection(
+
+                    table.title,
+
+                    table.rows,
+
+                    table.samples_analysed
+
+                )
+
+            );
+
+        }
+
+    );
+
+};
+
+
+/* ==========================================================
+   CREATE BLOCK HEADING
+   ========================================================== */
+
+Antibiogram.createBlockHeading = function (title, samplesAnalysed) {
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.style.margin =
+        "32px 0 14px 0";
+
+    wrapper.style.padding =
+        "4px 0 4px 14px";
+
+    wrapper.style.borderLeft =
+        "4px solid #1d5fa8";
+
+
+    const heading =
+        document.createElement("h2");
+
+    heading.textContent =
+        title || "";
+
+    heading.style.margin =
+        "0";
+
+    heading.style.fontSize =
+        "20px";
+
+    wrapper.appendChild(
+        heading
+    );
+
+
+    const subtitle =
+        document.createElement("p");
+
+    subtitle.textContent =
+        "Samples analysed: " +
+        this.formatCount(samplesAnalysed);
+
+    subtitle.style.margin =
+        "4px 0 0 0";
+
+    subtitle.style.fontSize =
+        "13.5px";
+
+    subtitle.style.color =
+        "#64748b";
+
+    wrapper.appendChild(
+        subtitle
+    );
+
+    return wrapper;
+
+};
+
+
+/* ==========================================================
+   CREATE EXPLANATORY NOTE
+   ========================================================== */
+
+Antibiogram.createNote = function (text) {
+
+    const note =
+        document.createElement("p");
+
+    note.textContent =
+        text;
+
+    note.style.margin =
+        "0 0 6px 0";
+
+    note.style.fontSize =
+        "13px";
+
+    note.style.color =
+        "#64748b";
+
+    return note;
+
+};
+
+
+/* ==========================================================
+   FORMAT A COUNT
+   ========================================================== */
+
+Antibiogram.formatCount = function (value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return "-";
+
+    }
+
+    return Number(value).toLocaleString();
+
+};
+
+
+/* ==========================================================
    CREATE ORGANISM SECTION
    ========================================================== */
 
 Antibiogram.createOrganismSection = function (
-
-    organism,
-
-    rows
-
+    title,
+    rows,
+    samplesAnalysed
 ) {
 
     const wrapper =
@@ -502,24 +678,50 @@ Antibiogram.createOrganismSection = function (
         "report-card";
 
 
-
     /* ------------------------------------------
-       Heading
+       Title
     ------------------------------------------ */
 
     const heading =
-        document.createElement("h2");
+        document.createElement("h3");
 
     heading.textContent =
-        organism;
+        title;
 
-    heading.style.marginBottom =
-        "14px";
+    heading.style.margin =
+        "0 0 4px 0";
+
+    heading.style.fontSize =
+        "17px";
 
     wrapper.appendChild(
         heading
     );
 
+
+    /* ------------------------------------------
+       Number of samples analysed
+    ------------------------------------------ */
+
+    const subtitle =
+        document.createElement("p");
+
+    subtitle.textContent =
+        "Samples analysed: " +
+        this.formatCount(samplesAnalysed);
+
+    subtitle.style.margin =
+        "0 0 14px 0";
+
+    subtitle.style.fontSize =
+        "13.5px";
+
+    subtitle.style.color =
+        "#64748b";
+
+    wrapper.appendChild(
+        subtitle
+    );
 
 
     /* ------------------------------------------
@@ -532,35 +734,21 @@ Antibiogram.createOrganismSection = function (
     tableContainer.className =
         "table-container";
 
-
-
     const table =
         document.createElement("table");
 
     table.className =
         "summary-table";
 
-
-
     table.appendChild(
-
         this.createTableHeader()
-
     );
-
-
 
     table.appendChild(
-
         this.createTableBody(
-
             rows
-
         )
-
     );
-
-
 
     tableContainer.appendChild(
         table
@@ -788,39 +976,34 @@ Antibiogram.updateInfoStrip = function () {
 
     }
 
+    const overallBlock =
+
+        (this.data && this.data.overall) || {};
+
     if (this.organismCount) {
 
         this.organismCount.textContent =
 
-            Object.keys(
-
-                (this.data && this.data.organisms) || {}
-
-            ).length;
+            (overallBlock.organisms || []).length;
 
     }
 
+
     if (this.antibioticCount) {
 
-        let antibiotics =
+        const antibiotics =
             new Set();
 
-        Object.values(
+        (overallBlock.organisms || []).forEach(
 
-            (this.data && this.data.organisms) || {}
+            table => {
 
-        ).forEach(
-
-            rows => {
-
-                rows.forEach(
+                (table.rows || []).forEach(
 
                     row => {
 
                         antibiotics.add(
-
                             row.Antibiotic
-
                         );
 
                     }
@@ -836,6 +1019,7 @@ Antibiogram.updateInfoStrip = function () {
             antibiotics.size;
 
     }
+
 
     if (this.reportGeneratedValue) {
 
